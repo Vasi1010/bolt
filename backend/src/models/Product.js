@@ -20,7 +20,7 @@ const productSchema = new mongoose.Schema({
     },
     image: {
         type: String,
-        ddefault: "",
+        default: "",
     },
     isAvailable: {
         type: Boolean,
@@ -33,4 +33,4 @@ const productSchema = new mongoose.Schema({
 
     }
 );
-module.exports = mongoose.model("Product", prouctSchema);
+module.exports = mongoose.model("Product", productSchema);
