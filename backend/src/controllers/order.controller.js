@@ -1,6 +1,7 @@
 const Cart = require("../models/Cart");
 const Order = require("../models/Order");
 const Product = require("../models/Product");
+const Payment = require("../models/Payment");
 
 // 🛒 Place Order (USER)
 exports.placeOrder = async (req, res) => {
@@ -65,6 +66,15 @@ exports.placeOrder = async (req, res) => {
     console.error("PLACE ORDER ERROR:", error);
     res.status(500).json({ message: "Failed to place order" });
   }
+  // 3️⃣ Create payment record
+await Payment.create({
+  user: userId,
+  order: order._id,
+  amount: totalAmount,
+  method: "COD",
+  status: "pending",
+});
+
 };
 
 // 📜 Get logged-in user's orders (USER)
