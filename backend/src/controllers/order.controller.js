@@ -8,6 +8,7 @@ exports.placeOrder = async (req, res) => {
   try {
     const userId = req.user._id;
 
+    // 1️⃣ Get cart
     const cart = await Cart.findOne({ user: userId }).populate("items.product");
 
     if (!cart || cart.items.length === 0) {
@@ -17,6 +18,7 @@ exports.placeOrder = async (req, res) => {
     let totalAmount = 0;
     const orderItems = [];
 
+    // 2️⃣ Validate stock + calculate total
     for (const item of cart.items) {
       const product = item.product;
 
@@ -42,19 +44,32 @@ exports.placeOrder = async (req, res) => {
       });
     }
 
+    // 3️⃣ Create order
     const order = await Order.create({
       user: userId,
       items: orderItems,
       totalAmount,
       paymentMethod: "COD",
+      status: "confirmed", // COD orders are confirmed immediately
     });
 
+    // 4️⃣ Create payment record
+    await Payment.create({
+      user: userId,
+      order: order._id,
+      amount: totalAmount,
+      method: "COD",
+      status: "pending",
+    });
+
+    // 5️⃣ Reduce stock
     for (const item of cart.items) {
       await Product.findByIdAndUpdate(item.product._id, {
         $inc: { stock: -item.quantity },
       });
     }
 
+    // 6️⃣ Clear cart
     cart.items = [];
     await cart.save();
 
@@ -66,22 +81,14 @@ exports.placeOrder = async (req, res) => {
     console.error("PLACE ORDER ERROR:", error);
     res.status(500).json({ message: "Failed to place order" });
   }
-  // 3️⃣ Create payment record
-await Payment.create({
-  user: userId,
-  order: order._id,
-  amount: totalAmount,
-  method: "COD",
-  status: "pending",
-});
-
 };
 
 // 📜 Get logged-in user's orders (USER)
 exports.getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id })
-      .sort({ createdAt: -1 });
+    const orders = await Order.find({ user: req.user._id }).sort({
+      createdAt: -1,
+    });
 
     res.status(200).json(orders);
   } catch (error) {
