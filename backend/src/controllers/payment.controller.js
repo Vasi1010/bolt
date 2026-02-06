@@ -52,11 +52,20 @@ exports.createRazorpayOrder = async (req, res) => {
       currency: razorpayOrder.currency,
       key: process.env.RAZORPAY_KEY_ID,
     });
-  } catch (error) {
-    console.error("RAZORPAY ORDER ERROR:", error);
-    res.status(500).json({ message: "Failed to create Razorpay order" });
+ } catch (error) {
+  console.error("🔥 RAZORPAY FULL ERROR:");
+  console.error(error);
+
+  if (error.error) {
+    console.error("🔥 RAZORPAY API ERROR:", error.error);
   }
-};
+
+  res.status(500).json({
+    message: "Failed to create Razorpay order",
+    razorpayError: error.error || error.message,
+  });
+}}
+
 
 // ✅ Verify Razorpay Payment
 exports.verifyRazorpayPayment = async (req, res) => {

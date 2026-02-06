@@ -22,7 +22,7 @@ const paymentSchema = new mongoose.Schema(
 
     method: {
       type: String,
-      enum: ["COD", "ONLINE"],
+      enum: ["COD", "RAZORPAY"],
       required: true,
     },
 
@@ -30,6 +30,10 @@ const paymentSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "success", "failed"],
       default: "pending",
+    },
+
+    gatewayOrderId: {
+      type: String,
     },
 
     gatewayPaymentId: {
