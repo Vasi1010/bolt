@@ -1,9 +1,11 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useContext } from "react";
+import { CartContext } from "../context/CartContext";
 import { AuthContext } from "../context/AuthContext";
 
 function Navbar() {
   const { user, logout } = useContext(AuthContext);
+  const { cart } = useContext(CartContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -18,9 +20,16 @@ function Navbar() {
       </Link>
 
       <div className="space-x-6 text-sm flex items-center">
-        <Link to="/cart" className="hover:text-gray-300 transition">
-          Cart
-        </Link>
+        <Link to="/cart" className="relative hover:text-gray-300 transition">
+         Cart
+         {cart?.items?.length > 0 && (
+           <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+             {cart.items.length}
+           </span>
+         )}
+
+      </Link>
+
 
         <Link to="/orders" className="hover:text-gray-300 transition">
           Orders

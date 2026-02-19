@@ -3,9 +3,12 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 // 🔐 Helper function to generate JWT
-const generateToken = (userId) => {
+const generateToken = (user) => {
   return jwt.sign(
-    { id: userId },
+    {
+      id: user._id,
+      role: user.role,   // 🔥 include role in token
+    },
     process.env.JWT_SECRET,
     { expiresIn: "7d" }
   );
@@ -34,9 +37,10 @@ exports.register = async (req, res) => {
       name,
       email: normalizedEmail,
       password: hashedPassword,
+      role: "user", // default role
     });
 
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -45,6 +49,7 @@ exports.register = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,   // 🔥 include role
       },
     });
   } catch (error) {
@@ -53,7 +58,7 @@ exports.register = async (req, res) => {
   }
 };
 
-// ✅ LOGIN (required because password has select:false)
+// ✅ LOGIN
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -74,7 +79,7 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     res.status(200).json({
       message: "Login successful",
@@ -83,6 +88,7 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        role: user.role,   // 🔥 include role
       },
     });
   } catch (error) {
