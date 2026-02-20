@@ -1,10 +1,10 @@
 import { useContext } from "react";
 import { CartContext } from "../context/CartContext";
 import API from "../api/axios";
-
+import { useNavigate } from "react-router-dom";
 function Cart() {
   const { cart, fetchCart } = useContext(CartContext);
-
+  const navigate = useNavigate();
   const handleRemove = async (productId) => {
     try {
       await API.delete("/cart/remove", {
@@ -106,8 +106,11 @@ function Cart() {
       <div className="mt-8 text-right">
         <h2 className="text-xl font-bold">Total: ₹{total}</h2>
 
-        <button className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800">
-          Proceed to Checkout
+        <button
+         onClick={() => navigate("/checkout")}
+         className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
+        >
+         Proceed to Checkout
         </button>
       </div>
     </div>
