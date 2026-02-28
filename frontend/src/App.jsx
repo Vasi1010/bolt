@@ -11,6 +11,7 @@ import OrderSuccess from "./pages/OrderSuccess";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import OrderDetails from "./pages/OrderDetails";
 function App() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -45,10 +46,29 @@ function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="/orders/:id"
+  element={
+    <ProtectedRoute>
+      <OrderDetails />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/admin/orders/:id"
+  element={
+    <ProtectedRoute adminOnly={true}>
+      <OrderDetails />
+    </ProtectedRoute>
+  }
+/>
         <Route path="*" element={<NotFound />} />
       </Routes>
     </div>
+    
   );
+  
 }
 
 export default App;
