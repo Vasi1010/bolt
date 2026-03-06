@@ -7,6 +7,7 @@ const Payment = require("../models/Payment");
 exports.placeOrder = async (req, res) => {
   try {
     const userId = req.user._id;
+    const { paymentMethod } = req.body;
 
     const cart = await Cart.findOne({ user: userId }).populate("items.product");
 
@@ -21,9 +22,9 @@ exports.placeOrder = async (req, res) => {
       const product = item.product;
 
       if (!product || !product.isAvailable) {
-        return res
-          .status(400)
-          .json({ message: "One or more products unavailable" });
+        return res.status(400).json({
+          message: "One or more products unavailable",
+        });
       }
 
       if (product.stock < item.quantity) {
@@ -41,15 +42,27 @@ exports.placeOrder = async (req, res) => {
       });
     }
 
+    const method = paymentMethod || "RAZORPAY";
+
     const order = await Order.create({
       user: userId,
       items: orderItems,
       totalAmount,
-      status: "pending", // 🔥 important
+      paymentMethod: method,
+      status: method === "COD" ? "confirmed" : "pending",
     });
 
+    // 🔥 If COD → clear cart immediately
+    if (method === "COD") {
+      cart.items = [];
+      await cart.save();
+    }
+
     res.status(201).json({
-      message: "Order created. Proceed to payment.",
+      message:
+        method === "COD"
+          ? "Order placed successfully"
+          : "Order created. Proceed to payment.",
       order,
     });
   } catch (error) {
@@ -57,6 +70,7 @@ exports.placeOrder = async (req, res) => {
     res.status(500).json({ message: "Failed to create order" });
   }
 };
+
 // 📜 Get logged-in user's orders (USER)
 exports.getMyOrders = async (req, res) => {
   try {
