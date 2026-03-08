@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useContext } from "react";
-import { CartContext } from "../context/CartContext";
+import { useContext, useEffect, useState } from "react";import { CartContext } from "../context/CartContext";
 import { AuthContext } from "../context/AuthContext";
 
 function Navbar() {
@@ -8,8 +7,20 @@ function Navbar() {
   const { cart } = useContext(CartContext);
   const navigate = useNavigate();
 
-  const cartCount = cart?.items?.length || 0;
+const cartCount = cart?.items?.length || 0;
+const [animate, setAnimate] = useState(false);
 
+useEffect(() => {
+  if (cartCount > 0) {
+    setAnimate(true);
+
+    const timer = setTimeout(() => {
+      setAnimate(false);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }
+}, [cartCount]);
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -26,10 +37,13 @@ function Navbar() {
         <Link to="/cart" className="relative hover:text-gray-300 transition">
           Cart
           {cartCount > 0 && (
-            <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-              {cartCount}
-            </span>
-          )}
+      <span
+         className={`absolute -top-2 -right-3 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full ${
+         animate ? "cart-pop" : ""
+        }`}
+      >
+        {cartCount}
+      </span>          )}
         </Link>
 
         <Link to="/orders" className="hover:text-gray-300 transition">
