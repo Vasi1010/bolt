@@ -8,6 +8,8 @@ function Navbar() {
   const { cart } = useContext(CartContext);
   const navigate = useNavigate();
 
+  const cartCount = cart?.items?.length || 0;
+
   const handleLogout = () => {
     logout();
     navigate("/login");
@@ -20,16 +22,15 @@ function Navbar() {
       </Link>
 
       <div className="space-x-6 text-sm flex items-center">
+
         <Link to="/cart" className="relative hover:text-gray-300 transition">
-         Cart
-         {cart?.items?.length > 0 && (
-           <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-             {cart.items.length}
-           </span>
-         )}
-
-      </Link>
-
+          Cart
+          {cartCount > 0 && (
+            <span className="absolute -top-2 -right-3 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+              {cartCount}
+            </span>
+          )}
+        </Link>
 
         <Link to="/orders" className="hover:text-gray-300 transition">
           Orders
@@ -49,6 +50,7 @@ function Navbar() {
         {user && (
           <>
             <span className="text-gray-300">{user.email}</span>
+
             <button
               onClick={handleLogout}
               className="bg-white text-black px-3 py-1 rounded hover:bg-gray-200 transition"
@@ -57,6 +59,7 @@ function Navbar() {
             </button>
           </>
         )}
+
       </div>
     </nav>
   );

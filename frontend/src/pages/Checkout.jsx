@@ -2,7 +2,7 @@ import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { CartContext } from "../context/CartContext";
-
+import toast from "react-hot-toast";
 function Checkout() {
   const [loading, setLoading] = useState(false);
   const [method, setMethod] = useState("RAZORPAY");
@@ -63,13 +63,13 @@ function Checkout() {
             });
 
           } catch (error) {
-            alert("Payment verification failed");
+            toast.error("Payment verification failed");
           }
         },
 
         modal: {
           ondismiss: function () {
-            alert("Payment cancelled");
+            toast("Payment cancelled");
           },
         },
 
@@ -81,14 +81,14 @@ function Checkout() {
       const razorpay = new window.Razorpay(options);
 
       razorpay.on("payment.failed", function () {
-        alert("Payment failed. Please try again.");
+        toast.error("Payment failed. Please try again.");
       });
 
       razorpay.open();
 
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || "Checkout failed");
+      toast.error(error.response?.data?.message || "Checkout failed");
     } finally {
       setLoading(false);
     }

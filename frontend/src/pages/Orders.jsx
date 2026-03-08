@@ -41,13 +41,22 @@ function Orders() {
     return <div className="p-10">Loading your orders...</div>;
   }
 
+  // Empty orders UI
   if (orders.length === 0) {
     return (
-      <div className="p-10 text-center">
-        <h1 className="text-2xl font-bold mb-4">No Orders Yet</h1>
-        <p className="text-gray-500">
-          You haven’t placed any orders yet.
+      <div className="p-20 text-center">
+        <h2 className="text-2xl font-bold mb-3">📦 No Orders Yet</h2>
+
+        <p className="text-gray-500 mb-6">
+          You haven't placed any orders yet.
         </p>
+
+        <button
+          onClick={() => navigate("/")}
+          className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800"
+        >
+          Start Shopping
+        </button>
       </div>
     );
   }
@@ -68,6 +77,7 @@ function Orders() {
                 <p className="font-semibold">
                   Order #{order._id.slice(-6)}
                 </p>
+
                 <p className="text-sm text-gray-500">
                   {new Date(order.createdAt).toLocaleString()}
                 </p>

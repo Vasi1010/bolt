@@ -1,19 +1,24 @@
 import { useContext } from "react";
 import { CartContext } from "../context/CartContext";
 import API from "../api/axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import toast from "react-hot-toast";
+
 function Cart() {
   const { cart, fetchCart } = useContext(CartContext);
   const navigate = useNavigate();
+
   const handleRemove = async (productId) => {
     try {
       await API.delete("/cart/remove", {
         data: { productId },
       });
 
-      fetchCart(); // 🔥 updates global cart
+      fetchCart();
+      toast.success("Item removed from cart");
     } catch (error) {
       console.error("Failed to remove item:", error);
+      toast.error("Failed to remove item");
     }
   };
 
@@ -29,16 +34,29 @@ function Cart() {
         quantity: newQuantity,
       });
 
-      fetchCart(); // 🔥 updates global cart
+      fetchCart();
     } catch (error) {
       console.error("Failed to update quantity:", error);
+      toast.error("Failed to update quantity");
     }
   };
 
+  // Empty cart UI
   if (!cart || !cart.items || cart.items.length === 0) {
     return (
-      <div className="p-10 text-center text-lg font-semibold">
-        Your cart is empty.
+      <div className="p-20 text-center">
+        <h2 className="text-2xl font-bold mb-3">🛒 Your Cart is Empty</h2>
+
+        <p className="text-gray-500 mb-6">
+          Looks like you haven't added anything yet.
+        </p>
+
+        <Link
+          to="/"
+          className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 transition"
+        >
+          Start Shopping
+        </Link>
       </div>
     );
   }
@@ -60,6 +78,7 @@ function Cart() {
           >
             <div>
               <h2 className="font-semibold">{item.product.name}</h2>
+
               <p className="text-gray-600">
                 ₹{item.product.price} × {item.quantity}
               </p>
@@ -107,10 +126,10 @@ function Cart() {
         <h2 className="text-xl font-bold">Total: ₹{total}</h2>
 
         <button
-         onClick={() => navigate("/checkout")}
-         className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
+          onClick={() => navigate("/checkout")}
+          className="mt-4 bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800"
         >
-         Proceed to Checkout
+          Proceed to Checkout
         </button>
       </div>
     </div>
