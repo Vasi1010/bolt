@@ -23,6 +23,9 @@ router.get("/my", authMiddleware, getMyOrders);
 
 // 👤 + 👑 Get single order (secure access)
 router.get("/:id", authMiddleware, async (req, res) => {
+  if (!req.params.id.match(/^[a-fA-F0-9]{24}$/)) {
+    return res.status(400).json({ message: "Invalid order ID" });
+  }
   try {
     const order = await Order.findById(req.params.id)
       .populate("user", "name email")
