@@ -1,17 +1,20 @@
 import { useContext, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 import { CartContext } from "../context/CartContext";
 
 function ProductCard({ product }) {
-  const { user }       = useContext(AuthContext);
-  const { fetchCart }  = useContext(CartContext);
-  const navigate       = useNavigate();
+  const { user }      = useContext(AuthContext);
+  const { fetchCart } = useContext(CartContext);
+  const navigate      = useNavigate();
   const [adding, setAdding] = useState(false);
   const [added,  setAdded]  = useState(false);
   const [ripples, setRipples] = useState([]);
   const btnRef = useRef(null);
+
+  const inStock = product.stock > 0;
+  const lowStock = product.stock > 0 && product.stock <= 5;
 
   const createRipple = (e) => {
     const btn  = btnRef.current;
@@ -23,7 +26,9 @@ function ProductCard({ product }) {
   };
 
   const handleAddToCart = async (e) => {
+    e.preventDefault();
     createRipple(e);
+    if (!inStock) return;
     if (!user) { navigate("/login"); return; }
     setAdding(true);
     try {
@@ -41,7 +46,7 @@ function ProductCard({ product }) {
   return (
     <div className="group flex flex-col">
       {/* Image */}
-      <div className="relative aspect-[3/4] bg-parchment dark:bg-dk-elevated border border-beige dark:border-dk-border overflow-hidden mb-4">
+      <Link to={`/products/${product._id}`} className="block relative aspect-[3/4] bg-parchment dark:bg-dk-elevated border border-beige dark:border-dk-border overflow-hidden mb-4">
         {product.image ? (
           <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105" />
         ) : (
@@ -52,24 +57,45 @@ function ProductCard({ product }) {
           </div>
         )}
         <div className="absolute inset-0 bg-charcoal/0 group-hover:bg-charcoal/5 dark:group-hover:bg-black/20 transition-colors duration-300" />
-      </div>
+
+        {/* Stock badges */}
+        {!inStock && (
+          <div className="absolute top-3 left-3 bg-charcoal/80 dark:bg-dk-elevated text-parchment dark:text-dk-text text-[8px] tracking-luxury uppercase px-2.5 py-1">
+            Out of Stock
+          </div>
+        )}
+        {lowStock && (
+          <div className="absolute top-3 left-3 bg-amber-600/90 text-white text-[8px] tracking-luxury uppercase px-2.5 py-1">
+            Only {product.stock} left
+          </div>
+        )}
+
+        {/* Quick view hint */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <span className="text-[8px] tracking-luxury uppercase text-parchment bg-charcoal/60 px-3 py-1">
+            View Details
+          </span>
+        </div>
+      </Link>
 
       {/* Info */}
       <div className="flex flex-col flex-1">
-        <h2 className="font-display text-xl font-light text-charcoal dark:text-dk-text leading-tight mb-1">
-          {product.name}
-        </h2>
-        <p className="text-gold text-sm tracking-wide mb-4 font-body font-light">
-          ₹{product.price}
-        </p>
+        <Link to={`/products/${product._id}`}>
+          <h2 className="font-display text-xl font-light text-charcoal dark:text-dk-text leading-tight mb-1 hover:text-gold transition-colors duration-200">
+            {product.name}
+          </h2>
+        </Link>
+        <p className="text-gold text-sm tracking-wide mb-4 font-body font-light">₹{product.price}</p>
 
-        {/* Button with ripple */}
+        {/* Add to Cart button */}
         <button
           ref={btnRef}
           onClick={handleAddToCart}
-          disabled={adding}
+          disabled={adding || !inStock}
           className={`btn-ripple mt-auto w-full py-3 text-[10px] tracking-wide2 uppercase font-medium transition-all duration-300 border ${
-            added
+            !inStock
+              ? "bg-beige dark:bg-dk-elevated border-beige dark:border-dk-border text-muted dark:text-dk-muted cursor-not-allowed"
+              : added
               ? "bg-sage border-sage text-parchment"
               : adding
               ? "bg-charcoal dark:bg-dk-elevated border-charcoal dark:border-dk-border text-parchment dark:text-dk-text opacity-70"
@@ -80,7 +106,7 @@ function ProductCard({ product }) {
             <span key={rp.id} className="ripple-circle" style={{ width: "80px", height: "80px", left: rp.x - 40, top: rp.y - 40 }} />
           ))}
           <span className="relative z-10 flex items-center justify-center gap-2">
-            {added ? (
+            {!inStock ? "Out of Stock" : added ? (
               <>
                 <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="2"><polyline points="2,8 6,12 14,4" /></svg>
                 Added

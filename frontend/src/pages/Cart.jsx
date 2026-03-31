@@ -1,14 +1,18 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { CartContext } from "../context/CartContext";
+import { AuthContext } from "../context/AuthContext";
 import API from "../api/axios";
 import { useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
 function Cart() {
-  const { cart, fetchCart } = useContext(CartContext);
+  const { cart, fetchCart, guestRemoveFromCart, guestUpdateQuantity } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [updatingId, setUpdatingId] = useState(null);
 
   const handleRemove = async (productId) => {
+    if (!user) { guestRemoveFromCart(productId); return; }
     try {
       await API.delete("/cart/remove", { data: { productId } });
       fetchCart();
@@ -18,10 +22,20 @@ function Cart() {
 
   const handleUpdate = async (productId, newQuantity) => {
     if (newQuantity < 1) { handleRemove(productId); return; }
+    if (!user) { guestUpdateQuantity(productId, newQuantity); return; }
+    setUpdatingId(productId);
     try {
       await API.put("/cart/update", { productId, quantity: newQuantity });
       fetchCart();
     } catch { toast.error("Failed to update quantity"); }
+    finally { setUpdatingId(null); }
+  };
+
+  const handleQtyInput = (productId, val, maxStock) => {
+    const n = parseInt(val, 10);
+    if (isNaN(n) || n < 1) return;
+    const clamped = maxStock ? Math.min(n, maxStock) : n;
+    handleUpdate(productId, clamped);
   };
 
   if (!cart || !cart.items || cart.items.length === 0) {
@@ -53,54 +67,91 @@ function Cart() {
           </span>
         </div>
 
+        {/* Guest notice */}
+        {!user && (
+          <div className="mb-8 px-5 py-4 border border-gold/30 bg-gold/5 flex items-center gap-3">
+            <div className="w-1.5 h-1.5 rounded-full bg-gold flex-shrink-0" />
+            <p className="text-xs text-muted dark:text-dk-muted tracking-wide">
+              You're shopping as a guest. <Link to="/login" className="text-gold underline underline-offset-2">Sign in</Link> to keep your cart saved across devices.
+            </p>
+          </div>
+        )}
+
         {/* Column Labels */}
         <div className="hidden md:grid grid-cols-12 gap-4 mb-4 pb-3 border-b border-beige dark:border-dk-border">
-          {["Product","Quantity","Unit","Total"].map((l,i) => (
-            <span key={l} className={`text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase ${i===0?"col-span-5":i===1?"col-span-3 text-center":i===2?"col-span-2 text-right":"col-span-2 text-right"}`}>{l}</span>
+          {["Product","Quantity","Unit","Total"].map((l, i) => (
+            <span key={l} className={`text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase ${
+              i===0?"col-span-5":i===1?"col-span-3 text-center":i===2?"col-span-2 text-right":"col-span-2 text-right"
+            }`}>{l}</span>
           ))}
         </div>
 
         {/* Items */}
         <div className="divide-y divide-beige dark:divide-dk-border">
-          {cart.items.map((item) => (
-            <div key={item.product._id} className="grid grid-cols-12 gap-4 py-7 items-center">
-              <div className="col-span-12 md:col-span-5 flex items-center gap-4">
-                <div className="w-16 h-20 bg-parchment dark:bg-dk-elevated border border-beige dark:border-dk-border flex-shrink-0 overflow-hidden">
-                  {item.product.image
-                    ? <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center"><span className="text-[8px] text-muted dark:text-dk-muted">None</span></div>
-                  }
+          {cart.items.map((item) => {
+            const isUpdating = updatingId === item.product._id;
+            return (
+              <div key={item.product._id} className="grid grid-cols-12 gap-4 py-7 items-center">
+                <div className="col-span-12 md:col-span-5 flex items-center gap-4">
+                  <Link to={`/products/${item.product._id}`} className="w-16 h-20 bg-parchment dark:bg-dk-elevated border border-beige dark:border-dk-border flex-shrink-0 overflow-hidden block">
+                    {item.product.image
+                      ? <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center"><span className="text-[8px] text-muted dark:text-dk-muted">None</span></div>
+                    }
+                  </Link>
+                  <div>
+                    <Link to={`/products/${item.product._id}`}>
+                      <h3 className="font-display text-lg font-light text-charcoal dark:text-dk-text leading-tight hover:text-gold transition-colors">{item.product.name}</h3>
+                    </Link>
+                    <p className="text-gold text-xs mt-1">₹{item.product.price}</p>
+                    <button onClick={() => handleRemove(item.product._id)}
+                      className="md:hidden text-[10px] text-muted dark:text-dk-muted hover:text-charcoal dark:hover:text-dk-text tracking-wide uppercase mt-2 transition-colors">
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-display text-lg font-light text-charcoal dark:text-dk-text leading-tight">{item.product.name}</h3>
-                  <p className="text-gold text-xs mt-1">₹{item.product.price}</p>
-                  <button onClick={() => handleRemove(item.product._id)} className="md:hidden text-[10px] text-muted dark:text-dk-muted hover:text-charcoal dark:hover:text-dk-text tracking-wide uppercase mt-2 transition-colors">Remove</button>
+
+                {/* Qty — with direct input */}
+                <div className="col-span-6 md:col-span-3 flex items-center justify-start md:justify-center">
+                  <button
+                    onClick={() => handleUpdate(item.product._id, item.quantity - 1)}
+                    disabled={isUpdating}
+                    className="w-8 h-8 border border-beige dark:border-dk-border text-charcoal dark:text-dk-text text-sm hover:border-gold hover:text-gold transition-colors duration-200 flex items-center justify-center disabled:opacity-40"
+                  >−</button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={item.product.stock || 999}
+                    value={item.quantity}
+                    onChange={(e) => handleQtyInput(item.product._id, e.target.value, item.product.stock)}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      if (isNaN(n) || n < 1) handleUpdate(item.product._id, 1);
+                    }}
+                    disabled={isUpdating}
+                    className="w-12 h-8 border-t border-b border-beige dark:border-dk-border bg-transparent text-center text-sm font-medium text-charcoal dark:text-dk-text focus:outline-none focus:border-gold transition-colors disabled:opacity-40"
+                  />
+                  <button
+                    onClick={() => handleUpdate(item.product._id, item.quantity + 1)}
+                    disabled={isUpdating || (item.product.stock && item.quantity >= item.product.stock)}
+                    className="w-8 h-8 border border-beige dark:border-dk-border text-charcoal dark:text-dk-text text-sm hover:border-gold hover:text-gold transition-colors duration-200 flex items-center justify-center disabled:opacity-40"
+                  >+</button>
+                </div>
+
+                <div className="hidden md:flex col-span-2 justify-end">
+                  <span className="text-sm text-muted dark:text-dk-muted">₹{item.product.price}</span>
+                </div>
+
+                <div className="col-span-6 md:col-span-2 flex flex-col items-end gap-2">
+                  <span className="font-display text-lg font-light text-charcoal dark:text-dk-text">₹{item.product.price * item.quantity}</span>
+                  <button onClick={() => handleRemove(item.product._id)}
+                    className="hidden md:block text-[10px] text-muted dark:text-dk-muted hover:text-charcoal dark:hover:text-dk-text tracking-wide uppercase transition-colors">
+                    Remove
+                  </button>
                 </div>
               </div>
-
-              {/* Qty */}
-              <div className="col-span-6 md:col-span-3 flex items-center justify-start md:justify-center">
-                {[
-                  { label: "−", fn: () => handleUpdate(item.product._id, item.quantity - 1) },
-                  null,
-                  { label: "+", fn: () => handleUpdate(item.product._id, item.quantity + 1) },
-                ].map((btn, i) =>
-                  btn === null
-                    ? <span key="q" className="w-10 h-8 border-t border-b border-beige dark:border-dk-border flex items-center justify-center text-sm font-medium text-charcoal dark:text-dk-text">{item.quantity}</span>
-                    : <button key={btn.label} onClick={btn.fn} className="w-8 h-8 border border-beige dark:border-dk-border text-charcoal dark:text-dk-text text-sm hover:border-gold hover:text-gold transition-colors duration-200 flex items-center justify-center">{btn.label}</button>
-                )}
-              </div>
-
-              <div className="hidden md:flex col-span-2 justify-end">
-                <span className="text-sm text-muted dark:text-dk-muted">₹{item.product.price}</span>
-              </div>
-
-              <div className="col-span-6 md:col-span-2 flex flex-col items-end gap-2">
-                <span className="font-display text-lg font-light text-charcoal dark:text-dk-text">₹{item.product.price * item.quantity}</span>
-                <button onClick={() => handleRemove(item.product._id)} className="hidden md:block text-[10px] text-muted dark:text-dk-muted hover:text-charcoal dark:hover:text-dk-text tracking-wide uppercase transition-colors">Remove</button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Summary */}

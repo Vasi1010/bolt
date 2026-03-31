@@ -3,29 +3,49 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 import Logo from "../components/Logo";
-import toast from "react-hot-toast";
 
 function Login() {
   const { login } = useContext(AuthContext);
   const navigate  = useNavigate();
   const [form, setForm]       = useState({ email: "", password: "" });
+  const [errors, setErrors]   = useState({});
+  const [apiError, setApiError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    // Clear field error on change
+    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: "" });
+    setApiError("");
+  };
+
+  const validate = () => {
+    const newErrors = {};
+    if (!form.email.trim()) newErrors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = "Enter a valid email";
+    if (!form.password) newErrors.password = "Password is required";
+    return newErrors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length) { setErrors(validationErrors); return; }
     setLoading(true);
+    setApiError("");
     try {
       const { data } = await API.post("/auth/login", form);
       login(data);
       navigate("/");
-    } catch {
-      toast.error("Invalid credentials. Please try again.");
+    } catch (err) {
+      setApiError(err.response?.data?.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
+  const FieldError = ({ msg }) =>
+    msg ? <p className="text-[10px] text-red-500 dark:text-red-400 tracking-wide mt-1.5">{msg}</p> : null;
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center px-8 hero-fade">
@@ -37,9 +57,38 @@ function Login() {
           <div className="h-px w-10 bg-beige dark:bg-dk-border" />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <input type="email"    name="email"    placeholder="Email Address" onChange={handleChange} required className="luxury-input" />
-          <input type="password" name="password" placeholder="Password"      onChange={handleChange} required className="luxury-input" />
+        {/* API-level error banner */}
+        {apiError && (
+          <div className="mb-6 px-4 py-3 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/10">
+            <p className="text-xs text-red-600 dark:text-red-400 tracking-wide">{apiError}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+          <div>
+            <input
+              type="email"
+              name="email"
+              placeholder="Email Address"
+              value={form.email}
+              onChange={handleChange}
+              className={`luxury-input ${errors.email ? "border-red-400 dark:border-red-600 focus:border-red-400" : ""}`}
+            />
+            <FieldError msg={errors.email} />
+          </div>
+
+          <div>
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={handleChange}
+              className={`luxury-input ${errors.password ? "border-red-400 dark:border-red-600 focus:border-red-400" : ""}`}
+            />
+            <FieldError msg={errors.password} />
+          </div>
+
           <button type="submit" disabled={loading} className="btn-dark w-full mt-4">
             {loading ? "Signing in..." : "Sign In"}
           </button>
