@@ -3,7 +3,7 @@ import API from "../api/axios";
 import toast from "react-hot-toast";
 
 const EMPTY_FORM = { name: "", price: "", category: "", stock: "", image: "", description: "" };
-const CLOUDINARY_CLOUD = import.meta.env.VITE_CLOUDINARY_CLOUD || "";
+const CLOUDINARY_CLOUD  = import.meta.env.VITE_CLOUDINARY_CLOUD  || "";
 const CLOUDINARY_PRESET = import.meta.env.VITE_CLOUDINARY_PRESET || "";
 
 // ── Cloudinary upload helper ──────────────────────────────────────────────────
@@ -23,7 +23,7 @@ async function uploadToCloudinary(file) {
 // ── ImageUploadField ──────────────────────────────────────────────────────────
 function ImageUploadField({ value, onChange, label = "Image" }) {
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState(value || "");
+  const [preview, setPreview]     = useState(value || "");
 
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -49,7 +49,6 @@ function ImageUploadField({ value, onChange, label = "Image" }) {
     <div className="col-span-2 flex flex-col gap-2">
       <label className="text-[9px] tracking-luxury text-muted dark:text-dk-muted uppercase">{label}</label>
       <div className="flex gap-3 items-start">
-        {/* Preview */}
         {preview && (
           <div className="w-16 h-20 border border-beige dark:border-dk-border overflow-hidden flex-shrink-0">
             <img src={preview} alt="preview" className="w-full h-full object-cover" />
@@ -77,7 +76,7 @@ function ImageUploadField({ value, onChange, label = "Image" }) {
   );
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
+// ── StatCard ──────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, color = "text-charcoal dark:text-dk-text" }) {
   return (
     <div className="bg-parchment dark:bg-dk-surface border border-beige dark:border-dk-border p-6">
@@ -88,17 +87,160 @@ function StatCard({ label, value, sub, color = "text-charcoal dark:text-dk-text"
   );
 }
 
+// ── statusStyle (pure — no closure needed) ────────────────────────────────────
+function statusStyle(s) {
+  return ({
+    pending:   "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+    confirmed: "bg-blue-50  dark:bg-blue-900/20  text-blue-700  dark:text-blue-400  border-blue-200  dark:border-blue-800",
+    shipped:   "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+    delivered: "bg-sage/10  dark:bg-sage/20       text-sage       dark:text-sage       border-sage/20   dark:border-sage/30",
+    cancelled: "bg-red-50   dark:bg-red-900/20   text-red-700   dark:text-red-400   border-red-200   dark:border-red-800",
+  }[s] || "bg-beige dark:bg-dk-elevated text-muted dark:text-dk-muted border-beige dark:border-dk-border");
+}
+
+// ── EditPanel ─────────────────────────────────────────────────────────────────
+// Defined OUTSIDE AdminDashboard — this is the fix for the focus bug.
+// When it lived inside, every keystroke re-rendered the parent, created a new
+// function reference, and React unmounted/remounted the panel, killing focus.
+function EditPanel({ product, editForm, setEditForm, editLoading, onSave, onCancel, onDelete }) {
+  return (
+    <div className="border-t border-beige dark:border-dk-border bg-cream dark:bg-dk-bg px-4 pb-5 pt-4">
+      <p className="text-[10px] tracking-luxury text-gold uppercase mb-5">Edit Product</p>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+        {[
+          { key: "name",     label: "Name",      type: "text"   },
+          { key: "price",    label: "Price (₹)", type: "number" },
+          { key: "category", label: "Category",  type: "text"   },
+          { key: "stock",    label: "Stock",      type: "number" },
+        ].map(({ key, label, type }) => (
+          <div key={key} className="flex flex-col gap-1">
+            <label className="text-[9px] tracking-luxury text-muted dark:text-dk-muted uppercase">{label}</label>
+            <input
+              type={type}
+              value={editForm[key]}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, [key]: e.target.value }))}
+              className="luxury-input text-sm"
+            />
+          </div>
+        ))}
+
+        <div className="col-span-2 flex flex-col gap-1">
+          <label className="text-[9px] tracking-luxury text-muted dark:text-dk-muted uppercase">Description</label>
+          <textarea
+            value={editForm.description}
+            onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+            rows={2}
+            placeholder="Product description (optional)"
+            className="luxury-input text-sm resize-none"
+          />
+        </div>
+
+        <ImageUploadField
+          label="Image"
+          value={editForm.image}
+          onChange={(url) => setEditForm((prev) => ({ ...prev, image: url }))}
+        />
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        <div className={`w-1.5 h-1.5 rounded-full ${Number(editForm.stock) > 0 ? "bg-sage" : "bg-red-400"}`} />
+        <span className="text-[10px] text-muted dark:text-dk-muted tracking-wide">
+          {Number(editForm.stock) > 0 ? `${editForm.stock} units in stock` : "Out of stock"}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-3 mt-6">
+        <button onClick={onSave} disabled={editLoading} className="btn-gold py-2 px-6 text-[10px]">
+          {editLoading ? "Saving..." : "Save Changes"}
+        </button>
+        <button onClick={onCancel}
+          className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase hover:text-charcoal dark:hover:text-dk-text transition-colors">
+          Cancel
+        </button>
+        <div className="flex-1" />
+        <button onClick={onDelete}
+          className="text-[10px] tracking-wide uppercase text-muted dark:text-dk-muted hover:text-red-500 transition-colors">
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── OrdersTable ───────────────────────────────────────────────────────────────
+// Also defined OUTSIDE for the same reason — stable reference = no remount.
+function OrdersTable({ list, showUpdate, onStatusChange }) {
+  if (list.length === 0) {
+    return (
+      <div className="py-16 text-center">
+        <p className="font-display text-2xl font-light text-muted dark:text-dk-muted italic">No orders here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-parchment dark:bg-dk-surface border border-beige dark:border-dk-border overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-beige dark:border-dk-border">
+            {["Order", "Customer", "Amount", "Date", "Status", showUpdate && "Update"].filter(Boolean).map((h) => (
+              <th key={h} className="p-4 text-left text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase font-medium">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-beige dark:divide-dk-border">
+          {list.map((order) => (
+            <tr key={order._id} className="hover:bg-cream dark:hover:bg-dk-elevated transition-colors">
+              <td className="p-4 font-body text-sm text-charcoal dark:text-dk-text font-medium">
+                #{order._id.slice(-6).toUpperCase()}
+              </td>
+              <td className="p-4">
+                <p className="text-sm text-charcoal dark:text-dk-text">{order.user?.name}</p>
+                <p className="text-xs text-muted dark:text-dk-muted">{order.user?.email}</p>
+              </td>
+              <td className="p-4 font-display text-lg font-light text-gold">₹{order.totalAmount}</td>
+              <td className="p-4 text-xs text-muted dark:text-dk-muted">
+                {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              </td>
+              <td className="p-4">
+                <span className={`text-[10px] tracking-wide uppercase px-2.5 py-0.5 border font-medium ${statusStyle(order.status)}`}>
+                  {order.status}
+                </span>
+              </td>
+              {showUpdate && (
+                <td className="p-4">
+                  <select
+                    value={order.status}
+                    onChange={(e) => onStatusChange(order._id, e.target.value)}
+                    className="bg-cream dark:bg-dk-elevated border border-beige dark:border-dk-border text-charcoal dark:text-dk-text text-xs py-1.5 px-3 font-body tracking-wide focus:outline-none focus:border-gold transition-colors cursor-pointer"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 function AdminDashboard() {
   const [products, setProducts]           = useState([]);
   const [orders, setOrders]               = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [activeTab, setActiveTab]         = useState("products");
-  const [orderSubTab, setOrderSubTab]     = useState("active"); // "active" | "history"
+  const [orderSubTab, setOrderSubTab]     = useState("active");
 
-  const [form, setForm]         = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm]   = useState(EMPTY_FORM);
+  const [form, setForm]               = useState(EMPTY_FORM);
+  const [editingId, setEditingId]     = useState(null);
+  const [editForm, setEditForm]       = useState(EMPTY_FORM);
   const [editLoading, setEditLoading] = useState(false);
 
   /* ── Data fetching ──────────────────────────────── */
@@ -118,7 +260,7 @@ function AdminDashboard() {
     .filter((o) => o.status !== "cancelled")
     .reduce((acc, o) => acc + (o.totalAmount || 0), 0);
 
-  const today = new Date().toDateString();
+  const today       = new Date().toDateString();
   const ordersToday = orders.filter((o) => new Date(o.createdAt).toDateString() === today).length;
 
   const topProduct = (() => {
@@ -129,8 +271,7 @@ function AdminDashboard() {
         counts[name] = (counts[name] || 0) + item.quantity;
       })
     );
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return sorted[0]?.[0] || "—";
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
   })();
 
   const activeOrders  = orders.filter((o) => o.status === "pending" || o.status === "confirmed" || o.status === "shipped");
@@ -170,10 +311,10 @@ function AdminDashboard() {
     });
   };
 
-  const handleEditSave = async (productId) => {
+  const handleEditSave = async () => {
     setEditLoading(true);
     try {
-      await API.put(`/products/${productId}`, {
+      await API.put(`/products/${editingId}`, {
         name:        editForm.name,
         price:       Number(editForm.price),
         category:    editForm.category,
@@ -208,136 +349,6 @@ function AdminDashboard() {
     } catch { toast.error("Failed to update status"); }
   };
 
-  const statusStyle = (s) => ({
-    pending:   "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800",
-    confirmed: "bg-blue-50  dark:bg-blue-900/20  text-blue-700  dark:text-blue-400  border-blue-200  dark:border-blue-800",
-    shipped:   "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800",
-    delivered: "bg-sage/10  dark:bg-sage/20       text-sage       dark:text-sage       border-sage/20   dark:border-sage/30",
-    cancelled: "bg-red-50   dark:bg-red-900/20   text-red-700   dark:text-red-400   border-red-200   dark:border-red-800",
-  }[s] || "bg-beige dark:bg-dk-elevated text-muted dark:text-dk-muted border-beige dark:border-dk-border");
-
-  /* ── Inline edit panel ──────────────────────────── */
-  const EditPanel = ({ product }) => (
-    <div className="border-t border-beige dark:border-dk-border bg-cream dark:bg-dk-bg px-4 pb-5 pt-4">
-      <p className="text-[10px] tracking-luxury text-gold uppercase mb-5">Edit Product</p>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-5">
-        {[
-          { key: "name",     label: "Name",        type: "text"   },
-          { key: "price",    label: "Price (₹)",   type: "number" },
-          { key: "category", label: "Category",    type: "text"   },
-          { key: "stock",    label: "Stock",        type: "number" },
-        ].map(({ key, label, type }) => (
-          <div key={key} className="flex flex-col gap-1">
-            <label className="text-[9px] tracking-luxury text-muted dark:text-dk-muted uppercase">{label}</label>
-            <input
-              type={type}
-              value={editForm[key]}
-              onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
-              className="luxury-input text-sm"
-            />
-          </div>
-        ))}
-
-        <div className="col-span-2 flex flex-col gap-1">
-          <label className="text-[9px] tracking-luxury text-muted dark:text-dk-muted uppercase">Description</label>
-          <textarea
-            value={editForm.description}
-            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-            rows={2}
-            placeholder="Product description (optional)"
-            className="luxury-input text-sm resize-none"
-          />
-        </div>
-
-        <ImageUploadField
-          label="Image"
-          value={editForm.image}
-          onChange={(url) => setEditForm({ ...editForm, image: url })}
-        />
-      </div>
-
-      <div className="mt-4 flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${Number(editForm.stock) > 0 ? "bg-sage" : "bg-red-400"}`} />
-        <span className="text-[10px] text-muted dark:text-dk-muted tracking-wide">
-          {Number(editForm.stock) > 0 ? `${editForm.stock} units in stock` : "Out of stock"}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-3 mt-6">
-        <button onClick={() => handleEditSave(product._id)} disabled={editLoading} className="btn-gold py-2 px-6 text-[10px]">
-          {editLoading ? "Saving..." : "Save Changes"}
-        </button>
-        <button onClick={() => setEditingId(null)}
-          className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase hover:text-charcoal dark:hover:text-dk-text transition-colors">
-          Cancel
-        </button>
-        <div className="flex-1" />
-        <button onClick={() => handleDelete(product._id)}
-          className="text-[10px] tracking-wide uppercase text-muted dark:text-dk-muted hover:text-red-500 transition-colors">
-          Delete
-        </button>
-      </div>
-    </div>
-  );
-
-  /* ── Orders table ───────────────────────────────── */
-  const OrdersTable = ({ list, showUpdate }) => (
-    list.length === 0 ? (
-      <div className="py-16 text-center">
-        <p className="font-display text-2xl font-light text-muted dark:text-dk-muted italic">No orders here</p>
-      </div>
-    ) : (
-      <div className="bg-parchment dark:bg-dk-surface border border-beige dark:border-dk-border overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-beige dark:border-dk-border">
-              {["Order", "Customer", "Amount", "Date", "Status", showUpdate && "Update"].filter(Boolean).map((h) => (
-                <th key={h} className="p-4 text-left text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase font-medium">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-beige dark:divide-dk-border">
-            {list.map((order) => (
-              <tr key={order._id} className="hover:bg-cream dark:hover:bg-dk-elevated transition-colors">
-                <td className="p-4 font-body text-sm text-charcoal dark:text-dk-text font-medium">
-                  #{order._id.slice(-6).toUpperCase()}
-                </td>
-                <td className="p-4">
-                  <p className="text-sm text-charcoal dark:text-dk-text">{order.user?.name}</p>
-                  <p className="text-xs text-muted dark:text-dk-muted">{order.user?.email}</p>
-                </td>
-                <td className="p-4 font-display text-lg font-light text-gold">₹{order.totalAmount}</td>
-                <td className="p-4 text-xs text-muted dark:text-dk-muted">
-                  {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                </td>
-                <td className="p-4">
-                  <span className={`text-[10px] tracking-wide uppercase px-2.5 py-0.5 border font-medium ${statusStyle(order.status)}`}>
-                    {order.status}
-                  </span>
-                </td>
-                {showUpdate && (
-                  <td className="p-4">
-                    <select
-                      value={order.status}
-                      onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                      className="bg-cream dark:bg-dk-elevated border border-beige dark:border-dk-border text-charcoal dark:text-dk-text text-xs py-1.5 px-3 font-body tracking-wide focus:outline-none focus:border-gold transition-colors cursor-pointer"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  );
-
   return (
     <div className="min-h-screen py-16 px-8">
       <div className="max-w-6xl mx-auto">
@@ -358,27 +369,10 @@ function AdminDashboard() {
 
         {/* Revenue Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <StatCard
-            label="Total Revenue"
-            value={`₹${totalRevenue.toLocaleString("en-IN")}`}
-            sub="All completed orders"
-            color="text-gold"
-          />
-          <StatCard
-            label="Total Orders"
-            value={orders.length}
-            sub={`${activeOrders.length} active`}
-          />
-          <StatCard
-            label="Orders Today"
-            value={ordersToday}
-            sub={new Date().toLocaleDateString("en-IN", { weekday: "long" })}
-          />
-          <StatCard
-            label="Top Product"
-            value=""
-            sub={topProduct}
-          />
+          <StatCard label="Total Revenue"  value={`₹${totalRevenue.toLocaleString("en-IN")}`} sub="All completed orders" color="text-gold" />
+          <StatCard label="Total Orders"   value={orders.length}  sub={`${activeOrders.length} active`} />
+          <StatCard label="Orders Today"   value={ordersToday}    sub={new Date().toLocaleDateString("en-IN", { weekday: "long" })} />
+          <StatCard label="Top Product"    value=""               sub={topProduct} />
         </div>
 
         {/* Tabs */}
@@ -408,16 +402,9 @@ function AdminDashboard() {
                   { name: "category", placeholder: "Category",       type: "text",   required: true  },
                   { name: "stock",    placeholder: "Stock Quantity",  type: "number", required: false },
                 ].map((f) => (
-                  <input
-                    key={f.name}
-                    type={f.type}
-                    name={f.name}
-                    placeholder={f.placeholder}
-                    value={form[f.name]}
-                    onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
-                    required={f.required}
-                    className="luxury-input"
-                  />
+                  <input key={f.name} type={f.type} name={f.name} placeholder={f.placeholder}
+                    value={form[f.name]} onChange={(e) => setForm({ ...form, [e.target.name]: e.target.value })}
+                    required={f.required} className="luxury-input" />
                 ))}
 
                 <textarea
@@ -455,18 +442,15 @@ function AdminDashboard() {
                 <div className="border border-beige dark:border-dk-border divide-y divide-beige dark:divide-dk-border">
                   {products.map((product) => (
                     <div key={product._id}>
-                      <div
-                        onClick={() => openEdit(product)}
+                      <div onClick={() => openEdit(product)}
                         className={`flex items-center justify-between px-4 py-3.5 cursor-pointer transition-colors duration-200 ${
                           editingId === product._id ? "bg-parchment dark:bg-dk-surface" : "hover:bg-parchment dark:hover:bg-dk-surface"
-                        }`}
-                      >
+                        }`}>
                         <div className="flex items-center gap-4">
                           <div className="w-9 h-11 bg-beige dark:bg-dk-elevated border border-beige dark:border-dk-border overflow-hidden flex-shrink-0">
                             {product.image
                               ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                              : <div className="w-full h-full bg-beige dark:bg-dk-border" />
-                            }
+                              : <div className="w-full h-full bg-beige dark:bg-dk-border" />}
                           </div>
                           <div>
                             <p className="font-body text-sm text-charcoal dark:text-dk-text font-medium leading-tight">{product.name}</p>
@@ -483,7 +467,19 @@ function AdminDashboard() {
                         </div>
                         <span className={`text-muted dark:text-dk-muted text-xs transition-transform duration-200 ${editingId === product._id ? "rotate-180" : ""}`}>↓</span>
                       </div>
-                      {editingId === product._id && <EditPanel product={product} />}
+
+                      {/* EditPanel is now a stable external component — no focus bug */}
+                      {editingId === product._id && (
+                        <EditPanel
+                          product={product}
+                          editForm={editForm}
+                          setEditForm={setEditForm}
+                          editLoading={editLoading}
+                          onSave={handleEditSave}
+                          onCancel={() => setEditingId(null)}
+                          onDelete={() => handleDelete(product._id)}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -495,7 +491,6 @@ function AdminDashboard() {
         {/* ── Orders Tab ───────────────────────────── */}
         {activeTab === "orders" && (
           <div>
-            {/* Sub-tabs: Active / History */}
             <div className="flex gap-6 mb-8 border-b border-beige dark:border-dk-border">
               {[
                 { key: "active",  label: `Active Orders (${activeOrders.length})` },
@@ -515,9 +510,9 @@ function AdminDashboard() {
             {loadingOrders ? (
               <div className="space-y-3">{[...Array(3)].map((_, i) => <div key={i} className="skeleton h-16 rounded-none" />)}</div>
             ) : orderSubTab === "active" ? (
-              <OrdersTable list={activeOrders} showUpdate={true} />
+              <OrdersTable list={activeOrders}  showUpdate={true}  onStatusChange={handleStatusChange} />
             ) : (
-              <OrdersTable list={historyOrders} showUpdate={false} />
+              <OrdersTable list={historyOrders} showUpdate={false} onStatusChange={handleStatusChange} />
             )}
           </div>
         )}
