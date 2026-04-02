@@ -3,10 +3,10 @@ import { useEffect, useState, useRef } from "react";
 import API from "../api/axios";
 
 const STAGES = [
-  { key: "placed",    label: "Order Placed",     icon: "📋", triggerAt: 0   },
-  { key: "confirmed", label: "Being Prepared",   icon: "👨‍🍳", triggerAt: 120 },
-  { key: "shipped",   label: "Rider On The Way", icon: "🏍️", triggerAt: 480 },
-  { key: "delivered", label: "Delivered!",        icon: "🏠", triggerAt: 900 },
+  { key: "placed",    label: "Order Placed",   icon: "✓",  triggerAt: 0   },
+  { key: "packing",   label: "Packing Order",  icon: "📦", triggerAt: 120 },
+  { key: "shipped",   label: "On The Way",     icon: "🏍️", triggerAt: 480 },
+  { key: "delivered", label: "Delivered!",     icon: "🏠", triggerAt: 900 },
 ];
 const TOTAL = 900;
 
@@ -14,13 +14,13 @@ const TOTAL = 900;
 function Particles() {
   const [particles, setParticles] = useState([]);
   useEffect(() => {
-    setParticles(Array.from({ length: 22 }, (_, i) => ({
+    setParticles(Array.from({ length: 18 }, (_, i) => ({
       id: i,
       left: `${10 + Math.random() * 80}%`,
       top:  `${20 + Math.random() * 60}%`,
       delay: `${0.5 + Math.random() * 1.5}s`,
-      size:  `${3 + Math.random() * 6}px`,
-      opacity: 0.3 + Math.random() * 0.7,
+      size:  `${3 + Math.random() * 5}px`,
+      opacity: 0.25 + Math.random() * 0.5,
     })));
   }, []);
   return (
@@ -32,248 +32,245 @@ function Particles() {
   );
 }
 
-// ── Confetti burst on delivery ────────────────────────────────────────────────
+// ── Confetti burst ────────────────────────────────────────────────────────────
 function Confetti() {
   const pieces = Array.from({ length: 32 }, (_, i) => {
-    const angle = (i / 32) * 360;
-    const dist  = 60 + Math.random() * 100;
-    const cx    = `${Math.cos((angle * Math.PI) / 180) * dist}px`;
-    const cy    = `${Math.sin((angle * Math.PI) / 180) * dist - 40}px`;
-    const cr    = `${-180 + Math.random() * 360}deg`;
+    const angle  = (i / 32) * 360;
+    const dist   = 60 + Math.random() * 100;
+    const cx     = `${Math.cos((angle * Math.PI) / 180) * dist}px`;
+    const cy     = `${Math.sin((angle * Math.PI) / 180) * dist - 40}px`;
+    const cr     = `${-180 + Math.random() * 360}deg`;
     const colors = ["#B8934A","#D4A85A","#6B8F71","#FEFCF8","#E2DAD0","#F0C060"];
-    const color  = colors[i % colors.length];
-    const shape  = i % 3 === 0 ? "50%" : i % 3 === 1 ? "2px" : "0%";
-    return { i, cx, cy, cr, color, shape };
+    return { i, cx, cy, cr, color: colors[i % colors.length], shape: i % 3 === 0 ? "50%" : i % 3 === 1 ? "2px" : "0%" };
   });
   return (
     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
       {pieces.map(({ i, cx, cy, cr, color, shape }) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            width: i % 2 === 0 ? "8px" : "5px",
-            height: i % 2 === 0 ? "8px" : "12px",
-            backgroundColor: color,
-            borderRadius: shape,
-            "--cx": cx, "--cy": cy, "--cr": cr,
-            animation: `confettiBurst 1.2s cubic-bezier(0.22,1,0.36,1) ${i * 0.03}s both`,
-          }}
-        />
+        <div key={i} style={{
+          position: "absolute", width: i % 2 === 0 ? "8px" : "5px", height: i % 2 === 0 ? "8px" : "12px",
+          backgroundColor: color, borderRadius: shape,
+          "--cx": cx, "--cy": cy, "--cr": cr,
+          animation: `confettiBurst 1.2s cubic-bezier(0.22,1,0.36,1) ${i * 0.03}s both`,
+        }} />
       ))}
     </div>
   );
 }
 
-// ── Animated sky + city delivery scene ───────────────────────────────────────
-function DeliveryScene({ stage, riderPct, delivered }) {
-  const isRiding   = stage >= 2;
-  const isDark     = false; // could wire to ThemeContext if desired
-  const skyFrom    = delivered ? "#FFF9E6" : stage >= 2 ? "#FEF3C7" : "#EFF6FF";
-  const skyTo      = delivered ? "#FDE68A" : stage >= 2 ? "#FCD34D40" : "#BFDBFE40";
+// ── Store Pin SVG ─────────────────────────────────────────────────────────────
+function StorePin({ active }) {
+  return (
+    <g>
+      <circle cx="0" cy="0" r="16" fill={active ? "#B8934A" : "#C8B99A"} opacity="0.18" />
+      <circle cx="0" cy="0" r="11" fill={active ? "#B8934A" : "#A09080"} />
+      {/* Box icon */}
+      <rect x="-5" y="-5" width="10" height="9" rx="1" fill="none" stroke="white" strokeWidth="1.3" />
+      <line x1="-5" y1="-1.5" x2="5" y2="-1.5" stroke="white" strokeWidth="1" />
+      <line x1="0" y1="-5" x2="0" y2="-1.5" stroke="white" strokeWidth="1" />
+    </g>
+  );
+}
+
+// ── House Pin SVG ─────────────────────────────────────────────────────────────
+function HousePin({ delivered }) {
+  const fill = delivered ? "#6B8F71" : "#A09080";
+  return (
+    <g>
+      <circle cx="0" cy="0" r="16" fill={fill} opacity="0.18" />
+      <circle cx="0" cy="0" r="11" fill={fill} />
+      {/* House icon */}
+      <polygon points="0,-6 -6,0 6,0" fill="white" opacity="0.9" />
+      <rect x="-4.5" y="0" width="9" height="6" rx="0.5" fill="white" opacity="0.9" />
+      <rect x="-1.5" y="2" width="3" height="4" fill={fill} />
+    </g>
+  );
+}
+
+// ── Scooter Icon ──────────────────────────────────────────────────────────────
+function ScooterIcon({ angle }) {
+  return (
+    <g transform={`rotate(${angle})`}>
+      {/* Body */}
+      <ellipse cx="0" cy="0" rx="7" ry="4" fill="#B8934A" />
+      {/* Front wheel */}
+      <circle cx="5" cy="2" r="2.5" fill="none" stroke="#7A6030" strokeWidth="1.2" />
+      {/* Rear wheel */}
+      <circle cx="-5" cy="2" r="2.5" fill="none" stroke="#7A6030" strokeWidth="1.2" />
+      {/* Handlebar */}
+      <line x1="5" y1="-1" x2="7" y2="-3" stroke="#7A6030" strokeWidth="1.2" strokeLinecap="round" />
+      {/* Rider head */}
+      <circle cx="3" cy="-4" r="2.5" fill="#D4A85A" />
+      {/* Package */}
+      <rect x="-6" y="-5" width="6" height="5" rx="0.5" fill="#D4A85A" stroke="#B8934A" strokeWidth="0.8" />
+    </g>
+  );
+}
+
+// ── Map Scene ─────────────────────────────────────────────────────────────────
+// The route path (follows the road grid):
+const ROUTE = "M 44 130 L 44 70 L 120 70 L 120 115 L 200 115 L 200 55 L 280 55 L 280 100 L 356 100";
+
+function MapScene({ stage, riderPct, delivered, showConfetti }) {
+  const pathRef  = useRef(null);
+  const [riderPos, setRiderPos] = useState({ x: 44, y: 130, angle: 0 });
+
+  // Move rider along path
+  useEffect(() => {
+    const el = pathRef.current;
+    if (!el) return;
+    const totalLen = el.getTotalLength();
+    const pct = stage >= 2 ? riderPct / 100 : 0;
+    const dist = pct * totalLen;
+    const pt   = el.getPointAtLength(dist);
+    const pt2  = el.getPointAtLength(Math.min(dist + 4, totalLen));
+    const angle = Math.atan2(pt2.y - pt.y, pt2.x - pt.x) * (180 / Math.PI);
+    setRiderPos({ x: pt.x, y: pt.y, angle });
+  }, [riderPct, stage]);
+
+  // Gold progress = how much of the route is filled
+  const traveledPct = stage >= 2 ? riderPct : 0;
 
   return (
-    <div
-      className="relative w-full overflow-hidden rounded-none"
-      style={{ height: "200px", background: `linear-gradient(to bottom, ${skyFrom}, ${skyTo})` }}
-    >
-      {/* ── Stars (pre-shipping) */}
-      {stage < 2 && (
-        <div className="absolute inset-0">
-          {[...Array(14)].map((_, i) => (
-            <div key={i} className="star-twinkle absolute w-1 h-1 rounded-full bg-gold"
-              style={{ left: `${5 + i * 6.8}%`, top: `${8 + (i % 4) * 12}%`, animationDelay: `${i * 0.3}s` }} />
-          ))}
-        </div>
-      )}
+    <div style={{ position: "relative", height: "200px", background: "#EDE8DC", overflow: "hidden" }}>
+      {showConfetti && <Confetti />}
 
-      {/* ── Sun (rises when shipped) */}
-      {stage >= 2 && (
-        <div className="absolute" style={{ top: "18px", right: "60px", animation: "sunRise 1.2s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
-          <svg width="38" height="38" viewBox="0 0 38 38">
-            <circle cx="19" cy="19" r="9" fill="#F59E0B" opacity="0.9" />
-            {[...Array(8)].map((_, i) => (
-              <line key={i}
-                x1="19" y1="4" x2="19" y2="8"
-                stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"
-                transform={`rotate(${i * 45} 19 19)`} opacity="0.7"
-              />
-            ))}
-          </svg>
-        </div>
-      )}
+      <svg width="100%" height="200" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">
 
-      {/* ── Clouds */}
-      {[
-        { cls: "cloud-drift-1", top: "14px",  opacity: 0.6, scale: 1    },
-        { cls: "cloud-drift-2", top: "28px",  opacity: 0.4, scale: 0.7  },
-        { cls: "cloud-drift-3", top: "8px",   opacity: 0.5, scale: 0.85 },
-      ].map(({ cls, top, opacity, scale }, ci) => (
-        <div key={ci} className={`${cls} absolute pointer-events-none`}
-          style={{ top, opacity, transform: `scale(${scale})`, transformOrigin: "left center" }}>
-          <svg width="80" height="30" viewBox="0 0 80 30" fill="none">
-            <ellipse cx="40" cy="22" rx="34" ry="12" fill="white" opacity="0.85" />
-            <ellipse cx="28" cy="18" rx="18" ry="14" fill="white" opacity="0.85" />
-            <ellipse cx="54" cy="16" rx="16" ry="13" fill="white" opacity="0.85" />
-          </svg>
-        </div>
-      ))}
+        {/* ── Map grid background ── */}
+        {/* Horizontal roads */}
+        <rect x="0" y="64"  width="400" height="12" fill="#D8CFC0" rx="0" />
+        <rect x="0" y="109" width="400" height="12" fill="#D8CFC0" />
+        {/* Vertical roads */}
+        <rect x="38"  y="0" width="12" height="200" fill="#D8CFC0" />
+        <rect x="114" y="0" width="12" height="200" fill="#D8CFC0" />
+        <rect x="194" y="0" width="12" height="200" fill="#D8CFC0" />
+        <rect x="274" y="0" width="12" height="200" fill="#D8CFC0" />
+        <rect x="350" y="0" width="12" height="200" fill="#D8CFC0" />
 
-      {/* ── Scrolling city skyline */}
-      <div className="city-scroll absolute bottom-14 left-0" style={{ width: "200%", display: "flex" }}>
-        {[0, 1].map((rep) => (
-          <svg key={rep} width="640" height="80" viewBox="0 0 640 80" fill="none" style={{ flexShrink: 0 }}>
-            {/* Buildings — varied heights */}
-            {[
-              [0,  40, 30, 40], [32, 20, 28, 60], [62, 10, 22, 70], [86, 30, 35, 50],
-              [123,15, 25, 65], [150,35, 20, 45], [172,5,  30, 75], [204,25, 28, 55],
-              [234,40, 22, 40], [258,10, 30, 70], [290,30, 25, 50], [317,20, 35, 60],
-              [354,8,  22, 72], [378,35, 28, 45], [408,15, 30, 65], [440,28, 20, 52],
-              [462,5,  35, 75], [499,32, 25, 48], [526,18, 28, 62], [556,38, 22, 42],
-              [580,12, 30, 68], [612,25, 28, 55],
-            ].map(([x, y, w, h], bi) => (
-              <g key={bi}>
-                <rect x={x} y={y} width={w} height={h} fill={bi % 3 === 0 ? "#D4C5B0" : bi % 3 === 1 ? "#C8B99A" : "#BFB090"} />
-                {/* Windows */}
-                {Array.from({ length: Math.floor(h / 16) }).map((_, row) =>
-                  Array.from({ length: Math.floor(w / 10) }).map((_, col) => (
-                    <rect key={`${row}-${col}`}
-                      x={x + 4 + col * 10} y={y + 6 + row * 14}
-                      width="5" height="7"
-                      fill="#B8934A"
-                      style={{ animation: `windowPulse ${1.5 + (bi + row + col) * 0.3}s ease-in-out infinite`, animationDelay: `${(bi * 0.2 + col * 0.1)}s`, fillOpacity: 0.4 }}
-                    />
-                  ))
-                )}
-              </g>
-            ))}
-          </svg>
-        ))}
-      </div>
+        {/* Road centre-line dashes */}
+        {[70, 115, 200].map((y) =>
+          Array.from({ length: 20 }, (_, i) => (
+            <rect key={`h-${y}-${i}`} x={i * 22} y={y + 5} width="12" height="2" fill="#C4B89A" opacity="0.6" rx="1" />
+          ))
+        )}
+        {[44, 120, 200, 280, 356].map((x) =>
+          Array.from({ length: 10 }, (_, i) => (
+            <rect key={`v-${x}-${i}`} x={x + 5} y={i * 22} width="2" height="12" fill="#C4B89A" opacity="0.6" rx="1" />
+          ))
+        )}
 
-      {/* ── Ground + scrolling road */}
-      <div className="absolute bottom-0 left-0 right-0" style={{ height: "56px", background: "#C8B99A" }}>
-        {/* Road surface */}
-        <div className="absolute top-0 left-0 right-0" style={{ height: "38px", background: "#6B6357" }}>
-          {/* Road scroll wrapper */}
-          <div className="road-scroll absolute top-0 left-0" style={{ width: "200%", height: "100%" }}>
-            {[0, 1].map((rep) => (
-              <div key={rep} style={{ position: "absolute", left: `${rep * 50}%`, top: 0, width: "50%", height: "100%" }}>
-                {/* Dashed centre line */}
-                {Array.from({ length: 20 }).map((_, i) => (
-                  <div key={i} style={{ position: "absolute", left: `${i * 5.5}%`, top: "17px", width: "32px", height: "3px", background: "#B8934A", opacity: 0.45 }} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-        {/* Kerb */}
-        <div className="absolute left-0 right-0" style={{ top: "38px", height: "6px", background: "#A09080" }} />
-        {/* Pavement */}
-        <div className="absolute left-0 right-0" style={{ top: "44px", height: "12px", background: "#C8B99A" }} />
-      </div>
+        {/* ── Hidden path for measurement ── */}
+        <path ref={pathRef} d={ROUTE} fill="none" stroke="none" />
 
-      {/* ── Destination house — visible from shipment stage */}
-      {stage >= 2 && (
-        <div className={`absolute bottom-9 right-8 ${delivered ? "house-glow" : ""}`} style={{ animation: "sunRise 0.8s ease forwards" }}>
-          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-            {/* House body */}
-            <rect x="10" y="26" width="32" height="26" fill="#D4C5B0" />
-            {/* Roof */}
-            <polygon points="6,28 26,10 46,28" fill="#8B7355" />
-            {/* Door */}
-            <rect x="20" y="38" width="12" height="14" rx="1" fill="#6B5B3E" />
-            <circle cx="30" cy="45" r="1.5" fill="#B8934A" />
-            {/* Windows */}
-            <rect x="12" y="30" width="8" height="8" rx="1" fill="#B8934A"
-              style={{ fillOpacity: delivered ? 0.9 : 0.3, animation: delivered ? "windowPulse 1s ease-in-out infinite" : "none" }} />
-            <rect x="32" y="30" width="8" height="8" rx="1" fill="#B8934A"
-              style={{ fillOpacity: delivered ? 0.9 : 0.3, animation: delivered ? "windowPulse 1.3s ease-in-out infinite" : "none" }} />
-            {/* Chimney */}
-            <rect x="34" y="14" width="6" height="12" fill="#8B7355" />
-          </svg>
-          {delivered && (
-            <div style={{ position: "absolute", top: "-28px", left: "50%", transform: "translateX(-50%)", animation: "deliveredPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards", fontSize: "22px" }}>
-              🎉
-            </div>
+        {/* ── Route shadow ── */}
+        <path d={ROUTE} stroke="#B8A888" strokeWidth="7" fill="none"
+          strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+
+        {/* ── Route untraveled (grey) ── */}
+        <path d={ROUTE} stroke="#C8B99A" strokeWidth="5" fill="none"
+          strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* ── Route traveled (animated gold) ── */}
+        <path
+          d={ROUTE}
+          stroke="#B8934A"
+          strokeWidth="5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          pathLength="100"
+          strokeDasharray="100"
+          strokeDashoffset={100 - traveledPct}
+          style={{ transition: "stroke-dashoffset 1s linear" }}
+        />
+
+        {/* ── Dotted outline on route for style ── */}
+        <path
+          d={ROUTE}
+          stroke="white"
+          strokeWidth="1.5"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="2 8"
+          opacity="0.5"
+          pathLength="100"
+          strokeDashoffset={100 - traveledPct}
+          style={{ transition: "stroke-dashoffset 1s linear" }}
+        />
+
+        {/* ── Store label ── */}
+        <text x="44" y="158" textAnchor="middle" fontSize="7" fill="#8B7355" fontFamily="Jost, sans-serif"
+          letterSpacing="0.05em" fontWeight="500">STORE</text>
+
+        {/* ── Destination label ── */}
+        <text x="356" y="128" textAnchor="middle" fontSize="7" fill={delivered ? "#6B8F71" : "#8B7355"}
+          fontFamily="Jost, sans-serif" letterSpacing="0.05em" fontWeight="500">YOUR HOME</text>
+
+        {/* ── Store pin ── */}
+        <g transform="translate(44, 130)">
+          {stage >= 1 && (
+            <circle cx="0" cy="0" r="18" fill="#B8934A" opacity="0.12">
+              <animate attributeName="r" values="13;20;13" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.15;0;0.15" dur="2s" repeatCount="indefinite" />
+            </circle>
           )}
-        </div>
-      )}
+          <StorePin active={stage >= 1} />
+        </g>
 
-      {/* ── Rider */}
-      {isRiding && !delivered && (
-        <div
-          className="rider-bounce absolute bottom-10"
-          style={{
-            left: `calc(${riderPct * 0.72}% + 4px)`,
-            transition: "left 1s linear",
-            maxWidth: "calc(100% - 80px)",
-          }}
-        >
-          {/* Exhaust puffs */}
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{
-              position: "absolute", left: "-4px", top: "14px",
-              width: "7px", height: "7px", borderRadius: "50%",
-              background: "rgba(100,90,80,0.35)",
-              animation: `exhaustPuff 0.7s ease-out ${i * 0.22}s infinite`,
-            }} />
-          ))}
-          {/* Speed lines */}
-          {[0, 1, 2].map((i) => (
-            <div key={i} style={{
-              position: "absolute", left: "-16px", top: `${8 + i * 7}px`,
-              width: `${14 - i * 3}px`, height: "1.5px",
-              background: "#B8934A", borderRadius: "2px",
-              animation: `speedLine 0.4s ease-out ${i * 0.13}s infinite`,
-            }} />
-          ))}
-          {/* Bike SVG */}
-          <svg width="52" height="40" viewBox="0 0 52 40" fill="none">
-            {/* Wheels */}
-            <circle cx="10" cy="30" r="8" stroke="#B8934A" strokeWidth="1.8" fill="none" className="wheel-spin" style={{ transformOrigin: "10px 30px" }} />
-            <circle cx="42" cy="30" r="8" stroke="#B8934A" strokeWidth="1.8" fill="none" className="wheel-spin" style={{ transformOrigin: "42px 30px" }} />
-            {/* Spokes */}
-            <circle cx="10" cy="30" r="2.5" fill="#B8934A" opacity="0.6" />
-            <circle cx="42" cy="30" r="2.5" fill="#B8934A" opacity="0.6" />
-            {/* Frame */}
-            <path d="M10 30 L22 16 L36 16 L42 30" stroke="#B8934A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <path d="M22 16 L26 30" stroke="#B8934A" strokeWidth="1.4" strokeLinecap="round" />
-            {/* Handlebar */}
-            <path d="M36 16 L40 12 M40 12 L44 14" stroke="#B8934A" strokeWidth="1.4" strokeLinecap="round" />
-            {/* Seat */}
-            <path d="M22 16 L30 13" stroke="#B8934A" strokeWidth="1.4" strokeLinecap="round" />
-            {/* Rider body */}
-            <path d="M30 13 L34 6" stroke="#B8934A" strokeWidth="1.4" strokeLinecap="round" />
-            <circle cx="34" cy="4" r="3.5" stroke="#B8934A" strokeWidth="1.4" fill="none" />
-            {/* Helmet */}
-            <path d="M31.5 3 Q34 0 36.5 3" stroke="#B8934A" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-            {/* Package on back — wobbles separately */}
-            <rect x="14" y="12" width="10" height="8" rx="1" stroke="#B8934A" strokeWidth="1.2" fill="none" className="package-wobble" style={{ transformOrigin: "19px 16px" }} />
-            <line x1="14" y1="16" x2="24" y2="16" stroke="#B8934A" strokeWidth="0.7" />
-            <line x1="19" y1="12" x2="19" y2="20" stroke="#B8934A" strokeWidth="0.7" />
-          </svg>
-        </div>
-      )}
+        {/* ── House pin ── */}
+        <g transform="translate(356, 100)">
+          {delivered && (
+            <circle cx="0" cy="0" r="18" fill="#6B8F71" opacity="0.2">
+              <animate attributeName="r" values="13;22;13" dur="1.5s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.25;0;0.25" dur="1.5s" repeatCount="indefinite" />
+            </circle>
+          )}
+          <HousePin delivered={delivered} />
+        </g>
 
-      {/* ── Delivered: rider at house, celebration */}
-      {delivered && (
-        <div className="absolute bottom-10 right-14" style={{ animation: "deliveredPop 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s both" }}>
-          <svg width="52" height="40" viewBox="0 0 52 40" fill="none">
-            <circle cx="10" cy="30" r="8" stroke="#6B8F71" strokeWidth="1.8" fill="none" />
-            <circle cx="42" cy="30" r="8" stroke="#6B8F71" strokeWidth="1.8" fill="none" />
-            <circle cx="10" cy="30" r="2.5" fill="#6B8F71" opacity="0.6" />
-            <circle cx="42" cy="30" r="2.5" fill="#6B8F71" opacity="0.6" />
-            <path d="M10 30 L22 16 L36 16 L42 30" stroke="#6B8F71" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <path d="M22 16 L26 30" stroke="#6B8F71" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M36 16 L40 12 M40 12 L44 14" stroke="#6B8F71" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M22 16 L30 13" stroke="#6B8F71" strokeWidth="1.4" strokeLinecap="round" />
-            <path d="M30 13 L34 6" stroke="#6B8F71" strokeWidth="1.4" strokeLinecap="round" />
-            <circle cx="34" cy="4" r="3.5" stroke="#6B8F71" strokeWidth="1.4" fill="none" />
-            <path d="M31.5 3 Q34 0 36.5 3" stroke="#6B8F71" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-          </svg>
-        </div>
-      )}
+        {/* ── Rider moving along path ── */}
+        {stage >= 2 && !delivered && (
+          <g transform={`translate(${riderPos.x}, ${riderPos.y})`}>
+            {/* Pulsing gold ring */}
+            <circle cx="0" cy="0" r="14" fill="#B8934A" opacity="0.0">
+              <animate attributeName="r" values="10;20;10" dur="1.2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.3;0;0.3" dur="1.2s" repeatCount="indefinite" />
+            </circle>
+            {/* White backing circle */}
+            <circle cx="0" cy="0" r="11" fill="white" />
+            {/* Gold border */}
+            <circle cx="0" cy="0" r="11" fill="none" stroke="#B8934A" strokeWidth="2" />
+            {/* Scooter icon rotated to match path direction */}
+            <ScooterIcon angle={riderPos.angle} />
+          </g>
+        )}
+
+        {/* ── Delivered: green pin at house, rider parked ── */}
+        {delivered && (
+          <g transform="translate(338, 100)" style={{ animation: "deliveredPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
+            <circle cx="0" cy="0" r="11" fill="white" />
+            <circle cx="0" cy="0" r="11" fill="none" stroke="#6B8F71" strokeWidth="2" />
+            <ScooterIcon angle={0} />
+          </g>
+        )}
+
+        {/* ── Waypoint dots along route ── */}
+        {[
+          { x: 44,  y: 70  },
+          { x: 120, y: 70  },
+          { x: 120, y: 115 },
+          { x: 200, y: 115 },
+          { x: 200, y: 55  },
+          { x: 280, y: 55  },
+          { x: 280, y: 100 },
+        ].map((pt, i) => (
+          <circle key={i} cx={pt.x} cy={pt.y} r="3"
+            fill={traveledPct > (i + 1) * 14 ? "#B8934A" : "#C8B99A"}
+            style={{ transition: "fill 0.5s ease" }}
+          />
+        ))}
+      </svg>
     </div>
   );
 }
@@ -281,12 +278,12 @@ function DeliveryScene({ stage, riderPct, delivered }) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 function OrderSuccess() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const orderId  = location.state?.orderId;
+  const navigate  = useNavigate();
+  const orderId   = location.state?.orderId;
 
-  const [elapsed,   setElapsed]   = useState(0);
-  const [riderPct,  setRiderPct]  = useState(0);
-  const [delivered, setDelivered] = useState(false);
+  const [elapsed,      setElapsed]      = useState(0);
+  const [riderPct,     setRiderPct]     = useState(0);
+  const [delivered,    setDelivered]    = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const timerRef = useRef(null);
 
@@ -304,7 +301,7 @@ function OrderSuccess() {
           setDelivered(true);
           setRiderPct(100);
           setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 2200);
+          setTimeout(() => setShowConfetti(false), 2500);
           if (orderId) {
             API.put(`/orders/${orderId}/status`, { status: "delivered" }).catch(console.error);
           }
@@ -324,11 +321,11 @@ function OrderSuccess() {
     <div className="min-h-[88vh] flex items-center justify-center px-8 relative overflow-hidden">
       <Particles />
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: "radial-gradient(ellipse 60% 50% at 50% 45%, rgba(184,147,74,0.07) 0%, transparent 70%)" }} />
+        style={{ background: "radial-gradient(ellipse 60% 50% at 50% 45%, rgba(184,147,74,0.06) 0%, transparent 70%)" }} />
 
       <div className="text-center max-w-lg relative z-10 w-full">
 
-        {/* ── Animated checkmark ring */}
+        {/* ── Animated checkmark ring ── */}
         <div className="success-icon-wrap flex justify-center mb-10">
           <svg width="90" height="90" viewBox="0 0 100 100" fill="none">
             <circle className="success-circle" cx="50" cy="50" r="47" stroke="#B8934A" strokeWidth="1" strokeLinecap="round" />
@@ -350,26 +347,27 @@ function OrderSuccess() {
           {delivered ? "Enjoy your order!" : "Thank you for your purchase."}
         </p>
 
-        {/* ── Delivery tracker card */}
+        {/* ── Tracker card ── */}
         <div className="success-ref bg-parchment dark:bg-dk-surface border border-beige dark:border-dk-border mb-6 overflow-hidden relative">
 
-          {showConfetti && <Confetti />}
-
-          {/* Animated delivery scene */}
-          <DeliveryScene stage={stageIndex} riderPct={riderPct} delivered={delivered} />
+          {/* Map delivery scene */}
+          <MapScene stage={stageIndex} riderPct={riderPct} delivered={delivered} showConfetti={showConfetti} />
 
           <div className="p-6">
+
             {/* Stage dots */}
             <div className="flex justify-between mb-5">
               {STAGES.map((stage, i) => (
                 <div key={stage.key} className={`flex flex-col items-center gap-2 flex-1 transition-all duration-700 ${i <= stageIndex ? "opacity-100" : "opacity-30"}`}>
                   <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center text-[11px] transition-all duration-500 ${
-                    i < stageIndex  ? "bg-gold border-gold text-parchment" :
+                    i < stageIndex   ? "bg-gold border-gold text-parchment" :
                     i === stageIndex ? "bg-parchment dark:bg-dk-surface border-gold text-gold" :
                     "bg-transparent border-beige dark:border-dk-border text-muted dark:text-dk-muted"
                   }`}>
                     {i < stageIndex ? (
-                      <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="2.5"><polyline points="2,8 6,12 14,4" /></svg>
+                      <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="2,8 6,12 14,4" />
+                      </svg>
                     ) : (
                       <span>{stage.icon}</span>
                     )}
@@ -384,10 +382,9 @@ function OrderSuccess() {
               ))}
             </div>
 
-            {/* Overall progress bar */}
+            {/* Progress bar */}
             <div className="relative h-0.5 bg-beige dark:bg-dk-border mb-5 overflow-hidden">
               <div className="absolute top-0 left-0 h-full bg-gold transition-all duration-1000 ease-linear" style={{ width: `${progressPct}%` }} />
-              {/* Shimmer on bar */}
               {!delivered && (
                 <div className="absolute top-0 h-full w-16" style={{
                   left: `${Math.max(0, progressPct - 8)}%`,
@@ -397,9 +394,10 @@ function OrderSuccess() {
               )}
             </div>
 
-            {/* Delivered celebration text */}
+            {/* Delivered celebration */}
             {delivered && (
-              <p className="text-center font-display italic text-gold text-lg mb-4" style={{ animation: "deliveredPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
+              <p className="text-center font-display italic text-gold text-lg mb-4"
+                style={{ animation: "deliveredPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards" }}>
                 Your order has arrived! 🎉
               </p>
             )}
@@ -416,7 +414,7 @@ function OrderSuccess() {
           </div>
         </div>
 
-        {/* ── Order reference */}
+        {/* ── Order reference ── */}
         {orderId && (
           <div className="success-ref inline-block bg-parchment dark:bg-dk-surface border border-beige dark:border-dk-border px-6 py-4 mb-8">
             <p className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-1">Order Reference</p>

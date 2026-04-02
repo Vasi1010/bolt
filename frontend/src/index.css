@@ -164,7 +164,7 @@ input[type="radio"]:checked::before {
   border-bottom: 1px solid #E2DAD0;
   padding-top: 10px;
   padding-bottom: 10px;
-  padding-left: 0;
+  
   padding-right: 0;
   font-family: 'Jost', sans-serif;
   font-size: 0.875rem;

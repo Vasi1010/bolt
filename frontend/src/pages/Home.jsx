@@ -1,14 +1,18 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import API from "../api/axios";
 import ProductCard from "../components/ProductCard";
 import toast from "react-hot-toast";
 
 function Home() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [search, setSearch]     = useState("");
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [products, setProducts]           = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [search, setSearch]               = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [activeCategory, setActiveCategory]   = useState("All");
+  const [gridKey, setGridKey]             = useState(0);
+  const searchRef = useRef(null);
 
+  /* ── Fetch products ─────────────────────────── */
   useEffect(() => {
     if (!sessionStorage.getItem("boltWelcome")) {
       toast.success("Welcome to Bolt.");
@@ -27,6 +31,22 @@ function Home() {
     fetchProducts();
   }, []);
 
+  /* ── Debounce search input (300 ms) ─────────── */
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setGridKey((k) => k + 1); // remount grid → triggers fade-up animation
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  /* ── Bump gridKey when category changes too ─── */
+  const handleCategoryChange = (cat) => {
+    setActiveCategory(cat);
+    setGridKey((k) => k + 1);
+  };
+
+  /* ── Derived data ───────────────────────────── */
   const categories = useMemo(() => {
     const cats = [...new Set(products.map((p) => p.category).filter(Boolean))];
     return ["All", ...cats.sort()];
@@ -35,13 +55,13 @@ function Home() {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       const matchSearch =
-        !search.trim() ||
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        (p.category && p.category.toLowerCase().includes(search.toLowerCase()));
+        !debouncedSearch.trim() ||
+        p.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (p.category && p.category.toLowerCase().includes(debouncedSearch.toLowerCase()));
       const matchCat = activeCategory === "All" || p.category === activeCategory;
       return matchSearch && matchCat;
     });
-  }, [products, search, activeCategory]);
+  }, [products, debouncedSearch, activeCategory]);
 
   return (
     <div>
@@ -70,7 +90,11 @@ function Home() {
           <h2 className="font-display text-3xl font-light text-charcoal dark:text-dk-text whitespace-nowrap">Our Collection</h2>
           <div className="flex-1 h-px bg-beige dark:bg-dk-border" />
           {!loading && (
-            <span className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase whitespace-nowrap">
+            <span
+              key={filtered.length}
+              className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase whitespace-nowrap"
+              style={{ animation: "fadeIn 0.3s ease forwards" }}
+            >
               {filtered.length} {filtered.length === 1 ? "item" : "items"}
             </span>
           )}
@@ -79,29 +103,40 @@ function Home() {
         {/* Search + Category filters */}
         {!loading && products.length > 0 && (
           <div className="flex flex-col sm:flex-row gap-4 mb-10">
-            <div className="relative flex-1 max-w-sm">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted dark:text-dk-muted pointer-events-none"
+            {/* Search input */}
+            <div className="relative flex-1 max-w-sm group">
+              <svg
+                onClick={() => searchRef.current?.focus()}
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted dark:text-dk-muted cursor-pointer hover:text-gold transition-colors duration-200"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round"
                   d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.804 7.5 7.5 0 0015.803 15.803z" />
               </svg>
               <input
+                ref={searchRef}
                 type="text"
                 placeholder="Search products..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="luxury-input pl-9 text-sm w-full"
+                className="luxury-input pl-9 text-sm w-full focus:border-b-gold"
               />
+              {/* Animated gold underline on focus */}
+              <span className="absolute bottom-0 left-0 h-px w-0 bg-gold transition-all duration-300 group-focus-within:w-full" />
               {search && (
-                <button onClick={() => setSearch("")}
+                <button
+                  onClick={() => { setSearch(""); searchRef.current?.focus(); }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted dark:text-dk-muted hover:text-charcoal dark:hover:text-dk-text transition-colors text-lg leading-none">
                   ×
                 </button>
               )}
             </div>
+
+            {/* Category pills */}
             <div className="flex items-center gap-2 flex-wrap">
               {categories.map((cat) => (
-                <button key={cat} onClick={() => setActiveCategory(cat)}
+                <button
+                  key={cat}
+                  onClick={() => handleCategoryChange(cat)}
                   className={`px-4 py-2 text-[10px] tracking-luxury uppercase border transition-all duration-200 ${
                     activeCategory === cat
                       ? "bg-charcoal dark:bg-dk-text border-charcoal dark:border-dk-text text-parchment dark:text-dk-bg"
@@ -114,6 +149,7 @@ function Home() {
           </div>
         )}
 
+        {/* Loading skeletons */}
         {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
             {[...Array(8)].map((_, i) => (
@@ -127,8 +163,9 @@ function Home() {
           </div>
         )}
 
+        {/* Empty state */}
         {!loading && filtered.length === 0 && (
-          <div className="py-28 text-center">
+          <div className="py-28 text-center" style={{ animation: "fadeUp 0.4s ease forwards" }}>
             <div className="flex items-center justify-center gap-6 mb-8">
               <div className="h-px w-16 bg-beige dark:bg-dk-border" />
               <span className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase">
@@ -137,10 +174,13 @@ function Home() {
               <div className="h-px w-16 bg-beige dark:bg-dk-border" />
             </div>
             <p className="font-display text-2xl font-light text-muted dark:text-dk-muted italic">
-              {products.length === 0 ? "No products available at this time." : `No products match your search`}
+              {products.length === 0
+                ? "No products available at this time."
+                : `No products match "${debouncedSearch || activeCategory}"`}
             </p>
             {(search || activeCategory !== "All") && (
-              <button onClick={() => { setSearch(""); setActiveCategory("All"); }}
+              <button
+                onClick={() => { setSearch(""); setActiveCategory("All"); setGridKey((k) => k + 1); }}
                 className="mt-8 text-[10px] tracking-luxury text-gold uppercase hover:text-gold-light transition-colors">
                 Clear filters
               </button>
@@ -148,10 +188,18 @@ function Home() {
           </div>
         )}
 
+        {/* Product grid — key prop forces remount → fade-up re-runs */}
         {!loading && filtered.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          <div
+            key={gridKey}
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
+          >
             {filtered.map((product, index) => (
-              <div key={product._id} className="product-fade" style={{ animationDelay: `${index * 0.07}s` }}>
+              <div
+                key={product._id}
+                className="product-fade"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
                 <ProductCard product={product} />
               </div>
             ))}
