@@ -281,15 +281,37 @@ function OrderSuccess() {
   const navigate  = useNavigate();
   const orderId   = location.state?.orderId;
 
-  const [elapsed,      setElapsed]      = useState(0);
-  const [riderPct,     setRiderPct]     = useState(0);
-  const [delivered,    setDelivered]    = useState(false);
+  // ── Initialise elapsed from localStorage so reload doesn't reset ──
+  const storageKey = orderId ? `bolt_order_start_${orderId}` : null;
+
+  const getElapsedFromStorage = () => {
+    if (!storageKey) return 0;
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) return 0;
+    const startTs = parseInt(saved, 10);
+    return Math.min(Math.floor((Date.now() - startTs) / 1000), TOTAL);
+  };
+
+  const [elapsed,      setElapsed]      = useState(() => getElapsedFromStorage());
+  const [riderPct,     setRiderPct]     = useState(() => {
+    const e = getElapsedFromStorage();
+    return e >= 480 ? ((e - 480) / (TOTAL - 480)) * 100 : 0;
+  });
+  const [delivered,    setDelivered]    = useState(() => getElapsedFromStorage() >= TOTAL);
   const [showConfetti, setShowConfetti] = useState(false);
   const timerRef = useRef(null);
 
   const stageIndex = STAGES.reduce((acc, s, i) => (elapsed >= s.triggerAt ? i : acc), 0);
 
   useEffect(() => {
+    // Save start timestamp once per order
+    if (storageKey && !localStorage.getItem(storageKey)) {
+      localStorage.setItem(storageKey, String(Date.now() - elapsed * 1000));
+    }
+
+    // If already delivered on mount, don't start timer
+    if (elapsed >= TOTAL) return;
+
     timerRef.current = setInterval(() => {
       setElapsed((prev) => {
         const next = prev + 1;
@@ -302,6 +324,7 @@ function OrderSuccess() {
           setRiderPct(100);
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 2500);
+          if (storageKey) localStorage.removeItem(storageKey); // clean up
           if (orderId) {
             API.put(`/orders/${orderId}/status`, { status: "delivered" }).catch(console.error);
           }

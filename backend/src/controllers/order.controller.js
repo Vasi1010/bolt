@@ -7,7 +7,15 @@ const Payment = require("../models/Payment");
 exports.placeOrder = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { paymentMethod } = req.body;
+    const { paymentMethod, deliveryAddress } = req.body;
+
+    // Validate address fields
+    const required = ["name", "phone", "street", "city", "state", "pincode"];
+    for (const field of required) {
+      if (!deliveryAddress?.[field]?.trim()) {
+        return res.status(400).json({ message: `Delivery address: ${field} is required` });
+      }
+    }
 
     const cart = await Cart.findOne({ user: userId }).populate("items.product");
 
@@ -22,19 +30,14 @@ exports.placeOrder = async (req, res) => {
       const product = item.product;
 
       if (!product || !product.isAvailable) {
-        return res.status(400).json({
-          message: "One or more products unavailable",
-        });
+        return res.status(400).json({ message: "One or more products unavailable" });
       }
 
       if (product.stock < item.quantity) {
-        return res.status(400).json({
-          message: `Not enough stock for ${product.name}`,
-        });
+        return res.status(400).json({ message: `Not enough stock for ${product.name}` });
       }
 
       totalAmount += product.price * item.quantity;
-
       orderItems.push({
         product: product._id,
         price: product.price,
@@ -50,19 +53,17 @@ exports.placeOrder = async (req, res) => {
       totalAmount,
       paymentMethod: method,
       status: method === "COD" ? "confirmed" : "pending",
+      deliveryAddress,
     });
 
-    // 🔥 If COD → clear cart immediately
+    // If COD → clear cart immediately
     if (method === "COD") {
       cart.items = [];
       await cart.save();
     }
 
     res.status(201).json({
-      message:
-        method === "COD"
-          ? "Order placed successfully"
-          : "Order created. Proceed to payment.",
+      message: method === "COD" ? "Order placed successfully" : "Order created. Proceed to payment.",
       order,
     });
   } catch (error) {
@@ -74,10 +75,7 @@ exports.placeOrder = async (req, res) => {
 // 📜 Get logged-in user's orders (USER)
 exports.getMyOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user._id }).sort({
-      createdAt: -1,
-    });
-
+    const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
     res.status(200).json(orders);
   } catch (error) {
     console.error("GET MY ORDERS ERROR:", error);
@@ -91,7 +89,6 @@ exports.getAllOrders = async (req, res) => {
     const orders = await Order.find()
       .populate("user", "name email")
       .sort({ createdAt: -1 });
-
     res.status(200).json(orders);
   } catch (error) {
     console.error("GET ALL ORDERS ERROR:", error);
@@ -103,13 +100,7 @@ exports.getAllOrders = async (req, res) => {
 exports.updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
-
-    const allowedStatuses = [
-      "pending",
-      "confirmed",
-      "delivered",
-      "cancelled",
-    ];
+    const allowedStatuses = ["pending", "confirmed", "delivered", "cancelled"];
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid order status" });
@@ -125,10 +116,7 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    res.status(200).json({
-      message: "Order status updated",
-      order,
-    });
+    res.status(200).json({ message: "Order status updated", order });
   } catch (error) {
     console.error("UPDATE ORDER STATUS ERROR:", error);
     res.status(500).json({ message: "Failed to update order status" });

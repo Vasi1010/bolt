@@ -9,7 +9,6 @@ const STEPS = [
   { key: "delivered",  label: "Delivered",  icon: "🏠" },
 ];
 
-// Map backend status → step index
 const statusToStep = {
   pending:   0,
   confirmed: 1,
@@ -36,27 +35,20 @@ function OrderTimeline({ status }) {
     <div className="py-8 px-6">
       <p className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-8">Order Progress</p>
       <div className="relative flex items-start justify-between">
-        {/* Progress line */}
         <div className="absolute top-4 left-0 right-0 h-px bg-beige dark:bg-dk-border" />
         <div
           className="absolute top-4 left-0 h-px bg-gold transition-all duration-700"
           style={{ width: currentStep === 0 ? "0%" : `${(currentStep / (STEPS.length - 1)) * 100}%` }}
         />
-
         {STEPS.map((step, i) => {
           const done    = i < currentStep;
           const current = i === currentStep;
-          const future  = i > currentStep;
-
           return (
             <div key={step.key} className="flex flex-col items-center gap-3 relative z-10 flex-1">
-              {/* Circle */}
               <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
-                done
-                  ? "bg-gold border-gold text-parchment"
-                  : current
-                  ? "bg-parchment dark:bg-dk-surface border-gold text-gold"
-                  : "bg-parchment dark:bg-dk-surface border-beige dark:border-dk-border text-muted dark:text-dk-muted"
+                done    ? "bg-gold border-gold text-parchment" :
+                current ? "bg-parchment dark:bg-dk-surface border-gold text-gold" :
+                "bg-parchment dark:bg-dk-surface border-beige dark:border-dk-border text-muted dark:text-dk-muted"
               }`}>
                 {done ? (
                   <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="2.5">
@@ -66,17 +58,11 @@ function OrderTimeline({ status }) {
                   <span className="text-[10px] font-medium">{i + 1}</span>
                 )}
               </div>
-
-              {/* Label */}
               <div className="text-center">
                 <p className={`text-[9px] tracking-luxury uppercase font-medium ${
                   done || current ? "text-charcoal dark:text-dk-text" : "text-muted dark:text-dk-muted"
-                }`}>
-                  {step.label}
-                </p>
-                {current && (
-                  <div className="w-1 h-1 rounded-full bg-gold mx-auto mt-1.5 animate-pulse" />
-                )}
+                }`}>{step.label}</p>
+                {current && <div className="w-1 h-1 rounded-full bg-gold mx-auto mt-1.5 animate-pulse" />}
               </div>
             </div>
           );
@@ -87,7 +73,7 @@ function OrderTimeline({ status }) {
 }
 
 function OrderDetails() {
-  const { id } = useParams();
+  const { id }   = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
 
@@ -143,6 +129,8 @@ function OrderDetails() {
               </div>
             ))}
           </div>
+
+          {/* Customer info */}
           {order.user && (
             <div className="mt-6 pt-6 border-t border-beige dark:border-dk-border grid grid-cols-2 gap-6">
               <div>
@@ -153,6 +141,19 @@ function OrderDetails() {
                 <p className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-1.5">Email</p>
                 <p className="font-body text-sm text-charcoal dark:text-dk-text">{order.user.email}</p>
               </div>
+            </div>
+          )}
+
+          {/* Delivery address */}
+          {order.deliveryAddress && (
+            <div className="mt-6 pt-6 border-t border-beige dark:border-dk-border">
+              <p className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-3">Delivery Address</p>
+              <p className="font-body text-sm text-charcoal dark:text-dk-text font-medium">{order.deliveryAddress.name}</p>
+              <p className="text-xs text-muted dark:text-dk-muted mt-0.5">{order.deliveryAddress.phone}</p>
+              <p className="text-xs text-muted dark:text-dk-muted mt-0.5">{order.deliveryAddress.street}</p>
+              <p className="text-xs text-muted dark:text-dk-muted">
+                {order.deliveryAddress.city}, {order.deliveryAddress.state} — {order.deliveryAddress.pincode}
+              </p>
             </div>
           )}
         </div>
@@ -182,7 +183,8 @@ function OrderDetails() {
           </div>
         </div>
 
-        <button onClick={() => navigate(-1)} className="mt-8 text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase hover:text-charcoal dark:hover:text-dk-text transition-colors">
+        <button onClick={() => navigate(-1)}
+          className="mt-8 text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase hover:text-charcoal dark:hover:text-dk-text transition-colors">
           ← Go Back
         </button>
       </div>
