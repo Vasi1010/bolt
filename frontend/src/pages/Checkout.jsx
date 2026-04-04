@@ -1,8 +1,10 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useReducer, useCallback, memo } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { CartContext } from "../context/CartContext";
 import toast from "react-hot-toast";
+
+/* ─── Constants ──────────────────────────────────────────────────────────────── */
 
 const EMPTY_ADDRESS = {
   name: "", phone: "", street: "", city: "", state: "", pincode: "",
@@ -18,31 +20,144 @@ const INDIAN_STATES = [
   "Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry",
 ];
 
-function Checkout() {
-  const [step, setStep]       = useState(1); // 1 = address, 2 = payment
-  const [address, setAddress] = useState(EMPTY_ADDRESS);
-  const [errors, setErrors]   = useState({});
-  const [loading, setLoading] = useState(false);
-  const [method, setMethod]   = useState("RAZORPAY");
-  const navigate              = useNavigate();
-  const { fetchCart }         = useContext(CartContext);
+/* ─── Form reducer (single state update per keystroke = no focus loss) ───────── */
 
-  /* ── Address validation ── */
+function formReducer(state, action) {
+  switch (action.type) {
+    case "SET_FIELD":
+      return {
+        address: { ...state.address, [action.field]: action.value },
+        errors:  { ...state.errors,  [action.field]: "" },
+      };
+    case "SET_ERRORS":
+      return { ...state, errors: action.errors };
+    default:
+      return state;
+  }
+}
+
+/* ─── Sub-components (module scope + memo = never remount, skip re-render) ───── */
+
+const Field = memo(function Field({ label, field, placeholder, type = "text", value, onChange, error }) {
+  return (
+    <div>
+      <label className="block text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-2">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(field, e.target.value)}
+        className="luxury-input pl-0"
+      />
+      {error && <p className="text-[10px] text-red-500 mt-1 tracking-wide">{error}</p>}
+    </div>
+  );
+});
+
+const StateSelect = memo(function StateSelect({ value, onChange, error }) {
+  return (
+    <div>
+      <label className="block text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-2">
+        State
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange("state", e.target.value)}
+        className="luxury-input pl-0 bg-transparent"
+      >
+        <option value="">Select state</option>
+        {INDIAN_STATES.map((s) => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+      {error && <p className="text-[10px] text-red-500 mt-1 tracking-wide">{error}</p>}
+    </div>
+  );
+});
+
+const PayOption = memo(function PayOption({ value, title, desc, selected, onChange }) {
+  return (
+    <label className={`flex items-center gap-5 p-5 border cursor-pointer transition-all duration-200 ${
+      selected
+        ? "border-gold bg-cream dark:bg-dk-elevated"
+        : "border-beige dark:border-dk-border hover:border-muted dark:hover:border-dk-muted"
+    }`}>
+      <input type="radio" value={value} checked={selected} onChange={() => onChange(value)} />
+      <div className="flex-1">
+        <p className="font-body font-medium text-sm text-charcoal dark:text-dk-text tracking-wide">{title}</p>
+        <p className="text-xs text-muted dark:text-dk-muted mt-0.5 tracking-wide">{desc}</p>
+      </div>
+      {selected && <span className="text-[10px] tracking-luxury text-gold uppercase">Selected</span>}
+    </label>
+  );
+});
+
+function StepBar({ step }) {
+  return (
+    <div className="flex items-center gap-3 mb-10">
+      {["Delivery Address", "Payment"].map((label, i) => {
+        const num    = i + 1;
+        const active = step === num;
+        const done   = step > num;
+        return (
+          <div key={label} className="flex items-center gap-3 flex-1">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium border transition-all duration-300 ${
+              done   ? "bg-gold border-gold text-parchment" :
+              active ? "border-gold text-gold bg-transparent" :
+                       "border-beige dark:border-dk-border text-muted dark:text-dk-muted"
+            }`}>
+              {done ? (
+                <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="2,8 6,12 14,4" />
+                </svg>
+              ) : num}
+            </div>
+            <span className={`text-[10px] tracking-luxury uppercase whitespace-nowrap ${
+              active ? "text-charcoal dark:text-dk-text" : "text-muted dark:text-dk-muted"
+            }`}>{label}</span>
+            {i === 0 && <div className="flex-1 h-px bg-beige dark:bg-dk-border" />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Main component ─────────────────────────────────────────────────────────── */
+
+function Checkout() {
+  const [step, setStep]     = useState(1);
+  const [method, setMethod] = useState("RAZORPAY");
+  const [loading, setLoading] = useState(false);
+  const navigate            = useNavigate();
+  const { fetchCart }       = useContext(CartContext);
+
+  const [{ address, errors }, dispatch] = useReducer(formReducer, {
+    address: EMPTY_ADDRESS,
+    errors:  {},
+  });
+
+  /* ── Stable change handler — same reference on every render ── */
+  const handleAddressChange = useCallback((field, value) => {
+    dispatch({ type: "SET_FIELD", field, value });
+  }, []);
+
+  /* ── Validation ── */
   const validate = () => {
     const e = {};
-    if (!address.name.trim())                          e.name    = "Full name is required";
-    if (!/^[6-9]\d{9}$/.test(address.phone.trim()))   e.phone   = "Enter a valid 10-digit mobile number";
-    if (!address.street.trim())                        e.street  = "Street address is required";
-    if (!address.city.trim())                          e.city    = "City is required";
-    if (!address.state)                                e.state   = "State is required";
-    if (!/^\d{6}$/.test(address.pincode.trim()))       e.pincode = "Enter a valid 6-digit pincode";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleAddressChange = (field, value) => {
-    setAddress((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
+    if (!address.name.trim())                         e.name    = "Full name is required";
+    if (!/^[6-9]\d{9}$/.test(address.phone.trim()))  e.phone   = "Enter a valid 10-digit mobile number";
+    if (!address.street.trim())                       e.street  = "Street address is required";
+    if (!address.city.trim())                         e.city    = "City is required";
+    if (!address.state)                               e.state   = "State is required";
+    if (!/^\d{6}$/.test(address.pincode.trim()))      e.pincode = "Enter a valid 6-digit pincode";
+    if (Object.keys(e).length > 0) {
+      dispatch({ type: "SET_ERRORS", errors: e });
+      return false;
+    }
+    return true;
   };
 
   const handleAddressContinue = () => {
@@ -96,70 +211,6 @@ function Checkout() {
     }
   };
 
-  /* ── Sub-components ── */
-  const Field = ({ label, field, placeholder, type = "text", children }) => (
-    <div>
-      <label className="block text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-2">{label}</label>
-      {children || (
-        <input
-          type={type}
-          value={address[field]}
-          placeholder={placeholder}
-          onChange={(e) => handleAddressChange(field, e.target.value)}
-          className="luxury-input pl-0"
-        />
-      )}
-      {errors[field] && (
-        <p className="text-[10px] text-red-500 mt-1 tracking-wide">{errors[field]}</p>
-      )}
-    </div>
-  );
-
-  const PayOption = ({ value, title, desc }) => (
-    <label className={`flex items-center gap-5 p-5 border cursor-pointer transition-all duration-200 ${
-      method === value
-        ? "border-gold bg-cream dark:bg-dk-elevated"
-        : "border-beige dark:border-dk-border hover:border-muted dark:hover:border-dk-muted"
-    }`}>
-      <input type="radio" value={value} checked={method === value} onChange={(e) => setMethod(e.target.value)} />
-      <div className="flex-1">
-        <p className="font-body font-medium text-sm text-charcoal dark:text-dk-text tracking-wide">{title}</p>
-        <p className="text-xs text-muted dark:text-dk-muted mt-0.5 tracking-wide">{desc}</p>
-      </div>
-      {method === value && <span className="text-[10px] tracking-luxury text-gold uppercase">Selected</span>}
-    </label>
-  );
-
-  /* ── Step indicator ── */
-  const StepBar = () => (
-    <div className="flex items-center gap-3 mb-10">
-      {["Delivery Address", "Payment"].map((label, i) => {
-        const num     = i + 1;
-        const active  = step === num;
-        const done    = step > num;
-        return (
-          <div key={label} className="flex items-center gap-3 flex-1">
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-medium border transition-all duration-300 ${
-              done   ? "bg-gold border-gold text-parchment" :
-              active ? "border-gold text-gold bg-transparent" :
-              "border-beige dark:border-dk-border text-muted dark:text-dk-muted"
-            }`}>
-              {done ? (
-                <svg viewBox="0 0 16 16" fill="none" className="w-3 h-3" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="2,8 6,12 14,4" />
-                </svg>
-              ) : num}
-            </div>
-            <span className={`text-[10px] tracking-luxury uppercase whitespace-nowrap ${
-              active ? "text-charcoal dark:text-dk-text" : "text-muted dark:text-dk-muted"
-            }`}>{label}</span>
-            {i === 0 && <div className="flex-1 h-px bg-beige dark:bg-dk-border" />}
-          </div>
-        );
-      })}
-    </div>
-  );
-
   return (
     <div className="min-h-screen py-16 px-8">
       <div className="max-w-2xl mx-auto">
@@ -168,7 +219,7 @@ function Checkout() {
           <div className="flex-1 h-px bg-beige dark:bg-dk-border" />
         </div>
 
-        <StepBar />
+        <StepBar step={step} />
 
         {/* ── Step 1: Address ── */}
         {step === 1 && (
@@ -177,32 +228,18 @@ function Checkout() {
 
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Field label="Full Name" field="name" placeholder="Your full name" />
-                <Field label="Mobile Number" field="phone" placeholder="10-digit mobile number" type="tel" />
+                <Field label="Full Name"      field="name"  placeholder="Your full name"           value={address.name}  onChange={handleAddressChange} error={errors.name}  />
+                <Field label="Mobile Number"  field="phone" placeholder="10-digit mobile number"   value={address.phone} onChange={handleAddressChange} error={errors.phone} type="tel" />
               </div>
 
-              <Field label="Street Address" field="street" placeholder="House no., building, street, area" />
+              <Field label="Street Address" field="street" placeholder="House no., building, street, area" value={address.street} onChange={handleAddressChange} error={errors.street} />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <Field label="City" field="city" placeholder="City" />
-                <Field label="State" field="state">
-                  <select
-                    value={address.state}
-                    onChange={(e) => handleAddressChange("state", e.target.value)}
-                    className="luxury-input pl-0 bg-transparent"
-                  >
-                    <option value="">Select state</option>
-                    {INDIAN_STATES.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                  {errors.state && (
-                    <p className="text-[10px] text-red-500 mt-1 tracking-wide">{errors.state}</p>
-                  )}
-                </Field>
+                <Field label="City" field="city" placeholder="City" value={address.city} onChange={handleAddressChange} error={errors.city} />
+                <StateSelect value={address.state} onChange={handleAddressChange} error={errors.state} />
               </div>
 
-              <Field label="Pincode" field="pincode" placeholder="6-digit pincode" type="tel" />
+              <Field label="Pincode" field="pincode" placeholder="6-digit pincode" value={address.pincode} onChange={handleAddressChange} error={errors.pincode} type="tel" />
             </div>
 
             <div className="h-px bg-beige dark:bg-dk-border my-8" />
@@ -237,8 +274,8 @@ function Checkout() {
 
             <p className="text-[10px] tracking-luxury text-muted dark:text-dk-muted uppercase mb-8">Payment Method</p>
             <div className="space-y-5">
-              <PayOption value="RAZORPAY" title="Pay Online"       desc="Secure payment via Razorpay" />
-              <PayOption value="COD"      title="Cash on Delivery" desc="Pay when your order arrives" />
+              <PayOption value="RAZORPAY" title="Pay Online"       desc="Secure payment via Razorpay" selected={method === "RAZORPAY"} onChange={setMethod} />
+              <PayOption value="COD"      title="Cash on Delivery" desc="Pay when your order arrives" selected={method === "COD"}      onChange={setMethod} />
             </div>
 
             <div className="h-px bg-beige dark:bg-dk-border my-8" />
